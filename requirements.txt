@@ -1,0 +1,4 @@
+warcio
+pdfminer
+click
+lxml
