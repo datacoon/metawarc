@@ -4,6 +4,7 @@ import click
 import logging
 
 from .cmds.extractor import Extractor
+from .cmds.analyzer import Analyzer
 
 #logging.getLogger().addHandler(logging.StreamHandler())
 logging.basicConfig(
@@ -34,9 +35,25 @@ def metadata(input, verbose, filetypes, fields, output):
     acmd.metadata(input, filetypes.split(',') if filetypes else None, fields, output=output)
     pass
 
+@click.group()
+def cli2():
+    pass
+
+@cli2.command()
+@click.argument('input')
+@click.option('--mode', '-m', default='mimes', help='Analysis mode: mimes, extensions')
+@click.option('--verbose', '-v', count=False, help='Verbose output. Print additional info')
+def analyze(input, mode, verbose):
+    """Analysis of the WARC"""
+    if verbose:
+        enableVerbose()
+    acmd = Analyzer()
+    acmd.analyze(input, mode=mode)
+    pass
 
 
-cli = click.CommandCollection(sources=[cli1,])
+
+cli = click.CommandCollection(sources=[cli1, cli2])
 
 #if __name__ == '__main__':
 #    cli()

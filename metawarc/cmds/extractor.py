@@ -21,7 +21,10 @@ def extractPDF(filename):
     """Extracts metadata from Adobe PDF files"""
     fp = open(filename, 'rb')
     parser = PDFParser(fp)
-    doc = PDFDocument(parser)
+    try:
+        doc = PDFDocument(parser)
+    except:
+        return None
     if len(doc.info) > 0:
         result = {}
         for k, v in doc.info[0].items():
@@ -38,20 +41,28 @@ def extractXmeta(filename):
         zf = zipfile.ZipFile(filename, 'r')
     except zipfile.BadZipFile:
         return None
+    meta = {}
     try:
-        s = zf.open('docProps/core.xml', 'r').read()
-        root = etree.fromstring(s)
-        meta = {}
-        namespaces = {'w': 'http://schemas.openxmlformats.org/package/2006/metadata/core-properties'}
-        for t in root:
-            meta[t.tag.rsplit('}', 1)[-1]] = t.text
-
-        s = zf.open('docProps/app.xml', 'r').read()
-        root = etree.fromstring(s)
-        namespaces = {'w': 'http://schemas.openxmlformats.org/officeDocument/2006/extended-properties'}
-        for t in root:
-            meta[t.tag.rsplit('}', 1)[-1]] = t.text
+        try:
+            s = zf.open('docProps/core.xml', 'r').read()
+            root = etree.fromstring(s)
+            meta = {}
+            namespaces = {'w': 'http://schemas.openxmlformats.org/package/2006/metadata/core-properties'}
+            for t in root:
+                meta[t.tag.rsplit('}', 1)[-1]] = t.text
+        except KeyError:
+            pass
+        try:
+            s = zf.open('docProps/app.xml', 'r').read()
+            root = etree.fromstring(s)
+            namespaces = {'w': 'http://schemas.openxmlformats.org/officeDocument/2006/extended-properties'}
+            for t in root:
+                meta[t.tag.rsplit('}', 1)[-1]] = t.text
+        except KeyError:
+            pass
     except KeyboardInterrupt:
+        meta = None
+    if len(meta.keys()) == 0:
         meta = None
     return meta
 
@@ -101,6 +112,8 @@ class Extractor:
         """Reads and returns all metadata from list of file types inside selected file container"""
         if file_types is None:
             file_types = SUPPORTED_FILE_TYPES
+        if output is None:
+            output = 'metadata.jsonl'
         logging.debug('Preparing %s' % fromfile)
         file_mimes = {}
         for mime, ext in MIME_MAP.items():

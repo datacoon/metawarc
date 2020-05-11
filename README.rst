@@ -27,8 +27,11 @@ File formats supported
 ======================
 
 MS Office OLE: .doc, .xls, .ppt
+
 MS Office XML: .docx, .xlsx, .pptx
+
 Adobe PDF: .pdf
+
 Images: .png, .jpg, .tiff, .jpeg, .jp2
 
 
@@ -59,8 +62,6 @@ Python version
 --------------
 
 Python version 3.6 or greater is required.
-
-
 
 Usage
 =====
@@ -111,4 +112,16 @@ Extract metadata for .doc and .docx file types from 'digital.gov.ru.warc.gz' and
 .. code-block:: bash
 
     $ metawarc metadata --filetypes doc,docx --output digital_meta.jsonl digital.gov.ru.warc.gz
+
+
+
+Analyze command
+----------------
+Returns list of mime mimetypes with stats as number of files and total files size for each mime type
+
+Analyzes 'digital.gov.ru.warc.gz' and output results of list of mime types as table to console
+
+.. code-block:: bash
+
+    $ metawarc analyze digital.gov.ru.warc.gz
 
