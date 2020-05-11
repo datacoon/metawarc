@@ -93,12 +93,15 @@ def processWarcRecord(record, url, filename, mime=None, fields=None):
 
 
 class Extractor:
+    """Metadata extraction class"""
     def __init__(self):
         pass
 
     def metadata(self, fromfile, file_types=SUPPORTED_FILE_TYPES, fields=None, output='metadata.jsonl'):
         """Reads and returns all metadata from list of file types inside selected file container"""
-        logging.debug('Preparting %s' % fromfile)
+        if file_types is None:
+            file_types = SUPPORTED_FILE_TYPES
+        logging.debug('Preparing %s' % fromfile)
         file_mimes = {}
         for mime, ext in MIME_MAP.items():
             if ext in file_types:
@@ -113,7 +116,6 @@ class Extractor:
                 filename = url.rsplit('?', 1)[0].rsplit('/', 1)[-1].lower()
                 ext = filename.rsplit('.', 1)[-1]
                 if h and h in file_mimes:
-#                    s = ';'.join([url, h if h else ''])
                     matched = True
                 else:
                     if len(ext) in [3, 4] and ext in file_types:
@@ -122,8 +124,6 @@ class Extractor:
                     result = processWarcRecord(record, url, filename, mime=h)
                     result['source'] = os.path.basename(fromfile)
                     out.write(json.dumps(result) + '\n')
-#                else:
-#                    print(h)
         out.close()
 
 

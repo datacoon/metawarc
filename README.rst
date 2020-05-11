@@ -1,5 +1,5 @@
 metawarc: a command-line tool for metadata extraction from files from WARC (Web ARChive)
-################################################
+########################################################################################
 
 metawarc (pronounced *me-ta-warc*) is a command line WARC files processing tools.
 Its goal is to make CLI interaction with files inside WARC archives so easy as possible.
@@ -34,8 +34,6 @@ Images: .png, .jpg, .tiff, .jpeg, .jp2
 
 Installation
 ============
-
-
 
 
 Any OS
