@@ -1,20 +1,20 @@
-import tempfile
-import zipfile
-import sys
-import os
 import json
 import logging
+import os
+import sys
+import tempfile
+import zipfile
 
-from warcio import ArchiveIterator
-from lxml import etree
-from hachoir.parser import createParser
-#from hachoir.core.tools import makePrintable
+# from hachoir.core.tools import makePrintable
 from hachoir.metadata import extractMetadata
-#from hachoir.core.i18n import initLocale
-from pdfminer.pdfparser import PDFParser
+from hachoir.parser import createParser
+from lxml import etree
 from pdfminer.pdfdocument import PDFDocument
+# from hachoir.core.i18n import initLocale
+from pdfminer.pdfparser import PDFParser
+from warcio import ArchiveIterator
 
-from ..constants import SUPPORTED_FILE_TYPES, MS_XML_FILES, MIME_MAP, MIME_PATTERNS, ADOBE_FILES
+from ..constants import SUPPORTED_FILE_TYPES, MS_XML_FILES, MIME_MAP, ADOBE_FILES
 
 
 def extractPDF(filename):
@@ -34,6 +34,7 @@ def extractPDF(filename):
                 result[k] = str(v)
         return result
     return None
+
 
 def extractXmeta(filename):
     """Extracts metadata from MS Office XML files like docx, xlsx, e.t.c."""
@@ -66,6 +67,7 @@ def extractXmeta(filename):
         meta = None
     return meta
 
+
 def processWarcRecord(record, url, filename, mime=None, fields=None):
     """Processes single WARC record"""
     if mime and mime in MIME_MAP.keys():
@@ -96,6 +98,7 @@ def processWarcRecord(record, url, filename, mime=None, fields=None):
                 metadata = extractMetadata(parser)
             except KeyboardInterrupt as err:
                 logging.info("Metadata extraction error: %s" % str(err))
+                metadata = None
             if not metadata:
                 logging.info("Unable to extract metadata from: %s" % filename)
             else:
@@ -105,6 +108,7 @@ def processWarcRecord(record, url, filename, mime=None, fields=None):
 
 class Extractor:
     """Metadata extraction class"""
+
     def __init__(self):
         pass
 
@@ -140,10 +144,6 @@ class Extractor:
         out.close()
 
 
-
-
 if __name__ == "__main__":
     ex = Extractor()
     ex.metadata(sys.argv[1])
-
-

@@ -1,13 +1,16 @@
-import json
 import csv
-from .constants import SUPPORTED_FILE_TYPES
+import json
+
 from .constants import DEFAULT_OPTIONS
+from .constants import SUPPORTED_FILE_TYPES
+
 
 def get_file_type(filename):
     ext = filename.rsplit('.', 1)[-1].lower()
     if ext in SUPPORTED_FILE_TYPES:
         return ext
     return None
+
 
 def get_option(options, name):
     """Returns value of the option"""
@@ -17,6 +20,7 @@ def get_option(options, name):
         return DEFAULT_OPTIONS[name]
     return None
 
+
 def write_items(fields, outdata, filetype, handle, delimiter=','):
     if len(outdata) == 0:
         return
@@ -25,7 +29,7 @@ def write_items(fields, outdata, filetype, handle, delimiter=','):
         dw.writeheader()
         if type(outdata[0]) == type(''):
             for rawitem in outdata:
-                item = {fields[0] : rawitem}
+                item = {fields[0]: rawitem}
                 dw.writerow(item)
         elif type(outdata[0]) == type([]):
             for rawitem in outdata:
@@ -37,7 +41,7 @@ def write_items(fields, outdata, filetype, handle, delimiter=','):
         # If our data is just array of strings, we just transform it to dict
         if type(outdata[0]) == type(''):
             for rawitem in outdata:
-                item = {fields[0] : rawitem}
+                item = {fields[0]: rawitem}
                 handle.write(json.dumps(item) + '\n')
         elif type(outdata[0]) == type([]):
             for rawitem in outdata:
@@ -52,7 +56,7 @@ def get_dict_value(d, keys):
     out = []
     if d is None:
         return out
-#    keys = key.split('.')
+    #    keys = key.split('.')
     if len(keys) == 1:
         if type(d) == type({}):
             if keys[0] in d.keys():
@@ -61,7 +65,7 @@ def get_dict_value(d, keys):
             for r in d:
                 if r and keys[0] in r.keys():
                     out.append(r[keys[0]])
-#        return out
+    #        return out
     else:
         if type(d) == type({}):
             if keys[0] in d.keys():
@@ -106,8 +110,8 @@ def dict_generator(indict, pre=None):
                         #                print 'dgen', value, key, pre
                         for d in dict_generator(v, pre + [key]):
                             yield d
-#                    for d in dict_generator(v, [key] + pre):
-#                        yield d
+            #                    for d in dict_generator(v, [key] + pre):
+            #                        yield d
             else:
                 yield pre + [key, value]
     else:

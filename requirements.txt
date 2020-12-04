@@ -2,3 +2,6 @@ warcio
 pdfminer
 click
 lxml
+hachoir
+tabulate
+pytest

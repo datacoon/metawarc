@@ -12,13 +12,15 @@ import metawarc
 class PyTest(TestCommand):
     # `$ python setup.py test' simply installs minimal requirements
     # and runs the tests with no fancy stuff like parallel execution.
-    def finalize_options(self):
-        TestCommand.finalize_options(self)
+    def __init__(self):
+        self.test_suite = True
         self.test_args = [
             '--doctest-modules', '--verbose',
             './metawarc', './tests'
         ]
-        self.test_suite = True
+
+    def finalize_options(self):
+        TestCommand.finalize_options(self)
 
     def run_tests(self):
         import pytest
@@ -34,7 +36,10 @@ tests_require = [
 
 install_requires = [
     'warcio',
+    'pdfminer',
     'click',
+    'lxml',
+    'hachoir'
 ]
 
 

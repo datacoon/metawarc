@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""The main entry point. Invoke as `undatum' or `python -m undatum`.
+"""The main entry point. Invoke as `metawarc' or `python -m metawarc`.
 
 """
 import sys
