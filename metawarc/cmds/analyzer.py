@@ -16,6 +16,7 @@ class Analyzer:
         resp = open(fromfile, 'rb')
         total = 0
         mimes = {}
+        exts = {}
         n = 0
         for record in ArchiveIterator(resp, arc2warc=True):
             if record.rec_type == 'response':
@@ -26,21 +27,33 @@ class Analyzer:
                 url = record.rec_headers.get_header('WARC-Target-URI')
                 filename = url.rsplit('?', 1)[0].rsplit('/', 1)[-1].lower()
                 total += 1
-                if h is not None:
-                    h = h.split(';', 1)[0]
+                if mode == 'mimes':
+                    if h is not None:
+                        h = h.split(';', 1)[0]
 
-                v = mimes.get(h, {'total': 0, 'size': 0})
-                v['total'] += 1
-                v['size'] += record.length
-                mimes[h] = v
+                    v = mimes.get(h, {'total': 0, 'size': 0})
+                    v['total'] += 1
+                    v['size'] += record.length
+                    mimes[h] = v
+                elif mode == 'exts':
+                    if filename.find('.') > -1:
+                        ext = filename.rsplit('.', 1)[-1]
+                    else:
+                        ext = ''
+                    v = exts.get(ext, {'total': 0, 'size': 0})
+                    v['total'] += 1
+                    v['size'] += record.length
+                    exts[ext] = v
 
         table = []
         total = ['#total', 0, 0]
-        for fd in mimes.items():
+        records = mimes if mode == 'mimes' else exts
+        for fd in sorted(records.items(), key=lambda item: item[1]['total'], reverse=True):
             record = [fd[0], fd[1]['total'], fd[1]['size']]
             total[1] += fd[1]['total']
             total[2] += fd[1]['size']
             table.append(record)
         table.append(total)
-        headers = ['mime', 'files', 'files size']
+
+        headers = [mode, 'files', 'files size']
         print(tabulate(table, headers=headers))

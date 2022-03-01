@@ -112,7 +112,7 @@ class Extractor:
     def __init__(self):
         pass
 
-    def metadata(self, fromfile, file_types=SUPPORTED_FILE_TYPES, fields=None, output='metadata.jsonl'):
+    def metadata_by_ext(self, fromfile, file_types=SUPPORTED_FILE_TYPES, fields=None, output='metadata.jsonl'):
         """Reads and returns all metadata from list of file types inside selected file container"""
         if file_types is None:
             file_types = SUPPORTED_FILE_TYPES
@@ -140,10 +140,11 @@ class Extractor:
                 if matched:
                     result = processWarcRecord(record, url, filename, mime=h)
                     result['source'] = os.path.basename(fromfile)
-                    out.write(json.dumps(result) + '\n')
+                    out.write(json.dumps(result, ensure_ascii=False) + '\n')
         out.close()
+
 
 
 if __name__ == "__main__":
     ex = Extractor()
-    ex.metadata(sys.argv[1])
+    ex.metadata_by_ext(sys.argv[1])

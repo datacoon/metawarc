@@ -35,7 +35,7 @@ def metadata(inputfile, verbose, filetypes, fields, output):
     if verbose:
         enableVerbose()
     acmd = Extractor()
-    acmd.metadata(inputfile, filetypes.split(',') if filetypes else None, fields, output=output)
+    acmd.metadata_by_ext(inputfile, filetypes.split(',') if filetypes else None, fields, output=output)
     pass
 
 
@@ -46,7 +46,7 @@ def cli2():
 
 @cli2.command()
 @click.argument('inputfile')
-@click.option('--mode', '-m', default='mimes', help='Analysis mode: mimes, extensions')
+@click.option('--mode', '-m', default='mimes', help='Analysis mode: mimes, exts. Default: mimes')
 @click.option('--verbose', '-v', count=False, help='Verbose output. Print additional info')
 def analyze(inputfile, mode, verbose):
     """Analysis of the WARC"""

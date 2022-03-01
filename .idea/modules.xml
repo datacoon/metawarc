@@ -2,6 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/../../datacoon/apibackuper/.idea/apibackuper.iml" filepath="$PROJECT_DIR$/../../datacoon/apibackuper/.idea/apibackuper.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../../datacoon/undatum/.idea/datum.iml" filepath="$PROJECT_DIR$/../../datacoon/undatum/.idea/datum.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../filegetter/.idea/filegetter.iml" filepath="$PROJECT_DIR$/../filegetter/.idea/filegetter.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/metawarc.iml" filepath="$PROJECT_DIR$/.idea/metawarc.iml" />
     </modules>
   </component>

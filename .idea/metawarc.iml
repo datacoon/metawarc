@@ -4,5 +4,8 @@
     <content url="file://$MODULE_DIR$" />
     <orderEntry type="jdk" jdkName="Python 3.8" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="datum" />
+    <orderEntry type="module" module-name="apibackuper" />
+    <orderEntry type="module" module-name="filegetter" />
   </component>
 </module>
