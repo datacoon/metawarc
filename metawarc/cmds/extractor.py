@@ -68,16 +68,21 @@ def extractXmeta(filename):
     return meta
 
 
-def processWarcRecord(record, url, filename, mime=None, fields=None):
+def processWarcRecord(record, url, filename, mime=None, fields=None, debug=False):
     """Processes single WARC record"""
     if mime and mime in MIME_MAP.keys():
         ext = MIME_MAP[mime]
     else:
         ext = filename.rsplit('.', 1)[-1]
-    temp = tempfile.NamedTemporaryFile(suffix=ext, dir=tempfile.gettempdir(), mode='wb', delete=False)
+    temp = tempfile.NamedTemporaryFile(suffix=ext, dir=tempfile.gettempdir(), mode='wb', delete=False if debug else False)
     temp.write(record.raw_stream.read())
     temp.close()
-    result = {'filename': filename, 'ext': ext, 'url': url, 'mime': mime, 'metadata': None}
+    result = {'filename': filename, 'ext': ext, 'url': url, 'mime': mime, 'metadata': None, 'error' : False}
+    if record.payload_length == 0:
+        result['error'] = True
+        result['msg']  = "Zero length file %s. Skip" % (filename)
+        logging.info("Zero length file %s. Skip" % (filename))
+        return result        
     if ext in MS_XML_FILES or (mime in MIME_MAP.keys() and MIME_MAP[mime] in MS_XML_FILES):
         meta = extractXmeta(temp.name)
         result['metadata'] = meta
@@ -88,10 +93,14 @@ def processWarcRecord(record, url, filename, mime=None, fields=None):
         try:
             parser = createParser(temp.name)
         except KeyboardInterrupt:
-            logging.info("Unable to parse file")
+            result['error'] = True
+            result['msg']  = "Unable to parse file %s" % filename
+            logging.info("Unable to parse file %s" % filename)
             return result
         if not parser:
-            logging.info("Unable to parse file")
+            result['error'] = True
+            result['msg']  = "Unable to parse file %s" % filename
+            logging.info("Unable to parse file %s" % filename)
             return result
         else:
             try:
@@ -101,8 +110,11 @@ def processWarcRecord(record, url, filename, mime=None, fields=None):
                 metadata = None
             if not metadata:
                 logging.info("Unable to extract metadata from: %s" % filename)
+                result['error'] = True
+                result['msg']  = "Unable to extract metadata from: %s" % filename
             else:
                 result['metadata'] = metadata.exportDictionary()
+
     return result
 
 

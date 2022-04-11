@@ -18,10 +18,11 @@ class Analyzer:
         mimes = {}
         exts = {}
         n = 0
-        for record in ArchiveIterator(resp, arc2warc=True):
+        for record in ArchiveIterator(resp, arc2warc=False):
+#            logging.debug('Processing record %d' % (n))
             if record.rec_type == 'response':
                 n += 1
-                if n % 1000 == 0:
+                if n % 10000 == 0:
                     logging.info('Processed %d records' % (n))
                 h = record.http_headers.get_header('content-type')
                 url = record.rec_headers.get_header('WARC-Target-URI')
@@ -46,14 +47,16 @@ class Analyzer:
                     exts[ext] = v
 
         table = []
-        total = ['#total', 0, 0]
+        total = ['#total', 0, 0, 100]
         records = mimes if mode == 'mimes' else exts
-        for fd in sorted(records.items(), key=lambda item: item[1]['total'], reverse=True):
-            record = [fd[0], fd[1]['total'], fd[1]['size']]
+        for fd in sorted(records.items(), key=lambda item: item[1]['size'], reverse=True):
             total[1] += fd[1]['total']
             total[2] += fd[1]['size']
+        total[3] = 100
+        for fd in sorted(records.items(), key=lambda item: item[1]['size'], reverse=True):
+            record = [fd[0], fd[1]['total'], fd[1]['size'], fd[1]['size']*100.0/total[2]]
             table.append(record)
         table.append(total)
 
-        headers = [mode, 'files', 'files size']
+        headers = [mode, 'files', 'size', 'share']
         print(tabulate(table, headers=headers))
