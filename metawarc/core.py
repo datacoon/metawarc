@@ -6,6 +6,7 @@ import click
 
 from .cmds.analyzer import Analyzer
 from .cmds.extractor import Extractor
+from .cmds.indexer import WARCIndexer
 
 # logging.getLogger().addHandler(logging.StreamHandler())
 logging.basicConfig(
@@ -57,7 +58,45 @@ def analyze(inputfile, mode, verbose):
     pass
 
 
-cli = click.CommandCollection(sources=[cli1, cli2])
+@click.group()
+def cli3():
+    pass
+
+
+@cli3.command()
+@click.argument('inputfile')
+@click.option('--verbose', '-v', count=False, help='Verbose output. Print additional info')
+@click.option('--fields', '-f', default='offset,warc-type,warc-target-uri', help="Fieldnames to extract")
+@click.option('--output', '-o', default=None, help="Output file")
+def index(inputfile, verbose, fields, output):
+    """Indexes WARC file"""
+    if verbose:
+        enableVerbose()
+    acmd = WARCIndexer()
+    acmd.doindex(inputfile, fields.split(','), output=output)
+    pass
+
+
+@click.group()
+def cli4():
+    pass
+
+
+@cli4.command()
+@click.argument('inputfile')
+@click.option('--verbose', '-v', count=False, help='Verbose output. Print additional info')
+@click.option('--output', '-o', default=None, help="Output file")
+def headers(inputfile, verbose, output):
+    """Dump WARC records headers"""
+    if verbose:
+        enableVerbose()
+    acmd = Extractor()
+    acmd.headers(inputfile, output=output)
+    pass
+
+
+
+cli = click.CommandCollection(sources=[cli1, cli2, cli3, cli4()])
 
 # if __name__ == '__main__':
 #    cli()
