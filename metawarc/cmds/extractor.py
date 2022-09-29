@@ -10,6 +10,7 @@ from hachoir.metadata import extractMetadata
 from hachoir.parser import createParser
 from lxml import etree
 from pdfminer.pdfdocument import PDFDocument
+
 # from hachoir.core.i18n import initLocale
 from pdfminer.pdfparser import PDFParser
 from warcio import ArchiveIterator
@@ -19,7 +20,7 @@ from ..constants import SUPPORTED_FILE_TYPES, MS_XML_FILES, MIME_MAP, ADOBE_FILE
 
 def extractPDF(filename):
     """Extracts metadata from Adobe PDF files"""
-    fp = open(filename, 'rb')
+    fp = open(filename, "rb")
     parser = PDFParser(fp)
     try:
         doc = PDFDocument(parser)
@@ -29,7 +30,7 @@ def extractPDF(filename):
         result = {}
         for k, v in doc.info[0].items():
             try:
-                result[k] = v.decode('utf8', 'ignore')
+                result[k] = v.decode("utf8", "ignore")
             except:
                 result[k] = str(v)
         return result
@@ -39,26 +40,32 @@ def extractPDF(filename):
 def extractXmeta(filename):
     """Extracts metadata from MS Office XML files like docx, xlsx, e.t.c."""
     try:
-        zf = zipfile.ZipFile(filename, 'r')
+        zf = zipfile.ZipFile(filename, "r")
     except zipfile.BadZipFile:
         return None
     meta = {}
     try:
         try:
-            s = zf.open('docProps/core.xml', 'r').read()
+            s = zf.open("docProps/core.xml", "r").read()
             root = etree.fromstring(s)
             meta = {}
-            namespaces = {'w': 'http://schemas.openxmlformats.org/package/2006/metadata/core-properties'}
+            namespaces = {
+                "w":
+                "http://schemas.openxmlformats.org/package/2006/metadata/core-properties"
+            }
             for t in root:
-                meta[t.tag.rsplit('}', 1)[-1]] = t.text
+                meta[t.tag.rsplit("}", 1)[-1]] = t.text
         except KeyError:
             pass
         try:
-            s = zf.open('docProps/app.xml', 'r').read()
+            s = zf.open("docProps/app.xml", "r").read()
             root = etree.fromstring(s)
-            namespaces = {'w': 'http://schemas.openxmlformats.org/officeDocument/2006/extended-properties'}
+            namespaces = {
+                "w":
+                "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"
+            }
             for t in root:
-                meta[t.tag.rsplit('}', 1)[-1]] = t.text
+                meta[t.tag.rsplit("}", 1)[-1]] = t.text
         except KeyError:
             pass
     except KeyboardInterrupt:
@@ -68,38 +75,57 @@ def extractXmeta(filename):
     return meta
 
 
-def processWarcRecord(record, url, filename, mime=None, fields=None, debug=False):
+def processWarcRecord(record,
+                      url,
+                      filename,
+                      mime=None,
+                      fields=None,
+                      debug=False):
     """Processes single WARC record"""
     if mime and mime in MIME_MAP.keys():
         ext = MIME_MAP[mime]
     else:
-        ext = filename.rsplit('.', 1)[-1]
-    temp = tempfile.NamedTemporaryFile(suffix=ext, dir=tempfile.gettempdir(), mode='wb', delete=False if debug else False)
+        ext = filename.rsplit(".", 1)[-1]
+    temp = tempfile.NamedTemporaryFile(
+        suffix=ext,
+        dir=tempfile.gettempdir(),
+        mode="wb",
+        delete=False if debug else False,
+    )
     temp.write(record.raw_stream.read())
     temp.close()
-    result = {'filename': filename, 'ext': ext, 'url': url, 'mime': mime, 'metadata': None, 'error' : False}
+    result = {
+        "filename": filename,
+        "ext": ext,
+        "url": url,
+        "mime": mime,
+        "metadata": None,
+        "error": False,
+    }
     if record.payload_length == 0:
-        result['error'] = True
-        result['msg']  = "Zero length file %s. Skip" % (filename)
+        result["error"] = True
+        result["msg"] = "Zero length file %s. Skip" % (filename)
         logging.info("Zero length file %s. Skip" % (filename))
-        return result        
-    if ext in MS_XML_FILES or (mime in MIME_MAP.keys() and MIME_MAP[mime] in MS_XML_FILES):
+        return result
+    if ext in MS_XML_FILES or (mime in MIME_MAP.keys()
+                               and MIME_MAP[mime] in MS_XML_FILES):
         meta = extractXmeta(temp.name)
-        result['metadata'] = meta
-    elif ext in ADOBE_FILES or (mime in MIME_MAP.keys() and MIME_MAP[mime] in ADOBE_FILES):
+        result["metadata"] = meta
+    elif ext in ADOBE_FILES or (mime in MIME_MAP.keys()
+                                and MIME_MAP[mime] in ADOBE_FILES):
         meta = extractPDF(temp.name)
-        result['metadata'] = meta
+        result["metadata"] = meta
     else:
         try:
             parser = createParser(temp.name)
         except KeyboardInterrupt:
-            result['error'] = True
-            result['msg']  = "Unable to parse file %s" % filename
+            result["error"] = True
+            result["msg"] = "Unable to parse file %s" % filename
             logging.info("Unable to parse file %s" % filename)
             return result
         if not parser:
-            result['error'] = True
-            result['msg']  = "Unable to parse file %s" % filename
+            result["error"] = True
+            result["msg"] = "Unable to parse file %s" % filename
             logging.info("Unable to parse file %s" % filename)
             return result
         else:
@@ -110,10 +136,11 @@ def processWarcRecord(record, url, filename, mime=None, fields=None, debug=False
                 metadata = None
             if not metadata:
                 logging.info("Unable to extract metadata from: %s" % filename)
-                result['error'] = True
-                result['msg']  = "Unable to extract metadata from: %s" % filename
+                result["error"] = True
+                result[
+                    "msg"] = "Unable to extract metadata from: %s" % filename
             else:
-                result['metadata'] = metadata.exportDictionary()
+                result["metadata"] = metadata.exportDictionary()
 
     return result
 
@@ -124,26 +151,32 @@ class Extractor:
     def __init__(self):
         pass
 
-    def metadata_by_ext(self, fromfile, file_types=SUPPORTED_FILE_TYPES, fields=None, output='metadata.jsonl'):
+    def metadata_by_ext(
+        self,
+        fromfile,
+        file_types=SUPPORTED_FILE_TYPES,
+        fields=None,
+        output="metadata.jsonl",
+    ):
         """Reads and returns all metadata from list of file types inside selected file container"""
         if file_types is None:
             file_types = SUPPORTED_FILE_TYPES
         if output is None:
-            output = 'metadata.jsonl'
-        logging.debug('Preparing %s' % fromfile)
+            output = "metadata.jsonl"
+        logging.debug("Preparing %s" % fromfile)
         file_mimes = {}
         for mime, ext in MIME_MAP.items():
             if ext in file_types:
                 file_mimes[mime] = ext
-        resp = open(fromfile, 'rb')
-        out = open(output, 'w', encoding='utf8')
+        resp = open(fromfile, "rb")
+        out = open(output, "w", encoding="utf8")
         for record in ArchiveIterator(resp, arc2warc=True):
             matched = False
-            if record.rec_type == 'response':
-                h = record.http_headers.get_header('content-type')
-                url = record.rec_headers.get_header('WARC-Target-URI')
-                filename = url.rsplit('?', 1)[0].rsplit('/', 1)[-1].lower()
-                ext = filename.rsplit('.', 1)[-1]
+            if record.rec_type == "response":
+                h = record.http_headers.get_header("content-type")
+                url = record.rec_headers.get_header("WARC-Target-URI")
+                filename = url.rsplit("?", 1)[0].rsplit("/", 1)[-1].lower()
+                ext = filename.rsplit(".", 1)[-1]
                 if h and h in file_mimes:
                     matched = True
                 else:
@@ -151,10 +184,32 @@ class Extractor:
                         matched = True
                 if matched:
                     result = processWarcRecord(record, url, filename, mime=h)
-                    result['source'] = os.path.basename(fromfile)
-                    out.write(json.dumps(result, ensure_ascii=False) + '\n')
+                    result["source"] = os.path.basename(fromfile)
+                    out.write(json.dumps(result, ensure_ascii=False) + "\n")
         out.close()
 
+    def headers(self, fromfile, output="headers.jsonl"):
+        """Reads and returns all headers"""
+        if output is None:
+            output = "headers.jsonl"
+        logging.debug("Preparing %s" % fromfile)
+        resp = open(fromfile, "rb")
+        out = open(output, "w", encoding="utf8")
+        for record in ArchiveIterator(resp, arc2warc=True):
+            if record.rec_type != "response":
+                continue
+            if record.http_headers is not None:
+                r = {
+                    "content-type":
+                    record.http_headers.get_header("content-type"),
+                    "url": record.rec_headers.get_header("WARC-Target-URI"),
+                }
+                headers = dict(record.http_headers.headers)
+                headers["status"] = record.http_headers.get_statuscode()
+                r["headers"] = headers
+                out.write(json.dumps(r, ensure_ascii=False) + "\n")
+        out.close()
+        resp.close()
 
 
 if __name__ == "__main__":

@@ -10,14 +10,15 @@ from .cmds.indexer import WARCIndexer
 
 # logging.getLogger().addHandler(logging.StreamHandler())
 logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     level=logging.DEBUG)
 
 
 def enableVerbose():
     logging.basicConfig(
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        level=logging.DEBUG)
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        level=logging.DEBUG,
+    )
 
 
 @click.group()
@@ -26,17 +27,28 @@ def cli1():
 
 
 @cli1.command()
-@click.argument('inputfile')
-@click.option('--verbose', '-v', count=False, help='Verbose output. Print additional info')
-@click.option('--filetypes', '-t', default=None, help="File types (default: doc,xls,ppt,docx,xlsx,pptx")
-@click.option('--fields', '-f', default=None, help="Fieldnames to extract")
-@click.option('--output', '-o', default=None, help="Output file")
+@click.argument("inputfile")
+@click.option("--verbose",
+              "-v",
+              count=False,
+              help="Verbose output. Print additional info")
+@click.option(
+    "--filetypes",
+    "-t",
+    default=None,
+    help="File types (default: doc,xls,ppt,docx,xlsx,pptx",
+)
+@click.option("--fields", "-f", default=None, help="Fieldnames to extract")
+@click.option("--output", "-o", default=None, help="Output file")
 def metadata(inputfile, verbose, filetypes, fields, output):
     """Extracts metadata from files inside WARC file or another file container"""
     if verbose:
         enableVerbose()
     acmd = Extractor()
-    acmd.metadata_by_ext(inputfile, filetypes.split(',') if filetypes else None, fields, output=output)
+    acmd.metadata_by_ext(inputfile,
+                         filetypes.split(",") if filetypes else None,
+                         fields,
+                         output=output)
     pass
 
 
@@ -46,9 +58,15 @@ def cli2():
 
 
 @cli2.command()
-@click.argument('inputfile')
-@click.option('--mode', '-m', default='mimes', help='Analysis mode: mimes, exts. Default: mimes')
-@click.option('--verbose', '-v', count=False, help='Verbose output. Print additional info')
+@click.argument("inputfile")
+@click.option("--mode",
+              "-m",
+              default="mimes",
+              help="Analysis mode: mimes, exts. Default: mimes")
+@click.option("--verbose",
+              "-v",
+              count=False,
+              help="Verbose output. Print additional info")
 def analyze(inputfile, mode, verbose):
     """Analysis of the WARC"""
     if verbose:
@@ -64,16 +82,24 @@ def cli3():
 
 
 @cli3.command()
-@click.argument('inputfile')
-@click.option('--verbose', '-v', count=False, help='Verbose output. Print additional info')
-@click.option('--fields', '-f', default='offset,warc-type,warc-target-uri', help="Fieldnames to extract")
-@click.option('--output', '-o', default=None, help="Output file")
+@click.argument("inputfile")
+@click.option("--verbose",
+              "-v",
+              count=False,
+              help="Verbose output. Print additional info")
+@click.option(
+    "--fields",
+    "-f",
+    default="offset,warc-type,warc-target-uri",
+    help="Fieldnames to extract",
+)
+@click.option("--output", "-o", default=None, help="Output file")
 def index(inputfile, verbose, fields, output):
     """Indexes WARC file"""
     if verbose:
         enableVerbose()
     acmd = WARCIndexer()
-    acmd.doindex(inputfile, fields.split(','), output=output)
+    acmd.doindex(inputfile, fields.split(","), output=output)
     pass
 
 
@@ -83,9 +109,12 @@ def cli4():
 
 
 @cli4.command()
-@click.argument('inputfile')
-@click.option('--verbose', '-v', count=False, help='Verbose output. Print additional info')
-@click.option('--output', '-o', default=None, help="Output file")
+@click.argument("inputfile")
+@click.option("--verbose",
+              "-v",
+              count=False,
+              help="Verbose output. Print additional info")
+@click.option("--output", "-o", default=None, help="Output file")
 def headers(inputfile, verbose, output):
     """Dump WARC records headers"""
     if verbose:
@@ -93,7 +122,6 @@ def headers(inputfile, verbose, output):
     acmd = Extractor()
     acmd.headers(inputfile, output=output)
     pass
-
 
 
 cli = click.CommandCollection(sources=[cli1, cli2, cli3, cli4()])

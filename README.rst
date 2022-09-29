@@ -125,3 +125,10 @@ Analyzes 'digital.gov.ru.warc.gz' and output results of list of mime types as ta
 
     $ metawarc analyze digital.gov.ru.warc.gz
 
+
+
+Other commands
+--------------
+
+* headers - dumps HTTP headers of WARC records
+* index - writes WARC file index (similar to warcio index)

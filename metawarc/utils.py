@@ -6,7 +6,7 @@ from .constants import SUPPORTED_FILE_TYPES
 
 
 def get_file_type(filename):
-    ext = filename.rsplit('.', 1)[-1].lower()
+    ext = filename.rsplit(".", 1)[-1].lower()
     if ext in SUPPORTED_FILE_TYPES:
         return ext
     return None
@@ -21,13 +21,13 @@ def get_option(options, name):
     return None
 
 
-def write_items(fields, outdata, filetype, handle, delimiter=','):
+def write_items(fields, outdata, filetype, handle, delimiter=","):
     if len(outdata) == 0:
         return
-    if filetype == 'csv':
+    if filetype == "csv":
         dw = csv.DictWriter(handle, delimiter=delimiter, fieldnames=fields)
         dw.writeheader()
-        if type(outdata[0]) == type(''):
+        if type(outdata[0]) == type(""):
             for rawitem in outdata:
                 item = {fields[0]: rawitem}
                 dw.writerow(item)
@@ -37,19 +37,19 @@ def write_items(fields, outdata, filetype, handle, delimiter=','):
                 dw.writerow(item)
         else:
             dw.writerows(outdata)
-    elif filetype == 'jsonl':
+    elif filetype == "jsonl":
         # If our data is just array of strings, we just transform it to dict
-        if type(outdata[0]) == type(''):
+        if type(outdata[0]) == type(""):
             for rawitem in outdata:
                 item = {fields[0]: rawitem}
-                handle.write(json.dumps(item) + '\n')
+                handle.write(json.dumps(item) + "\n")
         elif type(outdata[0]) == type([]):
             for rawitem in outdata:
                 item = dict(zip(fields, rawitem))
-                handle.write(json.dumps(item) + '\n')
+                handle.write(json.dumps(item) + "\n")
         else:
             for item in outdata:
-                handle.write(json.dumps(item) + '\n')
+                handle.write(json.dumps(item) + "\n")
 
 
 def get_dict_value(d, keys):
