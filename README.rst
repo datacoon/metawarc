@@ -26,13 +26,10 @@ Main features
 File formats supported
 ======================
 
-MS Office OLE: .doc, .xls, .ppt
-
-MS Office XML: .docx, .xlsx, .pptx
-
-Adobe PDF: .pdf
-
-Images: .png, .jpg, .tiff, .jpeg, .jp2
+* MS Office OLE: .doc, .xls, .ppt
+* MS Office XML: .docx, .xlsx, .pptx
+* Adobe PDF: .pdf
+* Images: .png, .jpg, .tiff, .jpeg, .jp2
 
 
 Installation
