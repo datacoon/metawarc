@@ -114,7 +114,8 @@ Extract metadata for .doc and .docx file types from 'digital.gov.ru.warc.gz' and
 
 Analyze command
 ----------------
-Returns list of mime mimetypes with stats as number of files and total files size for each mime type
+Returns list of mime mimetypes with stats as number of files and total files size for each mime type.
+Will be merged or replaced by 'stats' command that uses sqlite db to speed up data processing
 
 Analyzes 'digital.gov.ru.warc.gz' and output results of list of mime types as table to console
 
@@ -124,8 +125,49 @@ Analyzes 'digital.gov.ru.warc.gz' and output results of list of mime types as ta
 
 
 
-Other commands
---------------
+Index command
+-------------
+Generates 'metawarc.db' SQLite database with records HTTP metadata. Requred for 'stats' command to calculate stats quickly
 
-* headers - dumps HTTP headers of WARC records
-* index - writes WARC file index (similar to warcio index)
+Analyzes 'digital.gov.ru.warc.gz' and writes 'metawarc.db' with HTTP metadata.
+
+.. code-block:: bash
+
+    $ metawarc index digital.gov.ru.warc.gz
+
+Index command
+-------------
+Same as 'analyze' command but uses 'metawarc.db' to speed up data processing. Returns total length and count of records by each mime or file extension.
+
+Processes data in 'metawarc.db' and prints total length and count for each mime
+
+.. code-block:: bash
+
+    $ metawarc stats -m mimes
+
+Processes data in 'metawarc.db' and prints total length and count for each file extension
+
+.. code-block:: bash
+
+    $ metawarc stats -m exts
+
+
+Export command
+--------------
+Extracts HTTP headers, WARC headers or text content from WARC file and saves as NDJSON (JSON lines) data file.
+
+Exports http headers from 'digital.gov.ru.warc.gz' and writes as 'headers.jsonl'
+.. code-block:: bash
+
+    $ metawarc export -t headers -o headers.jsonl digital.gov.ru.warc.gz
+
+Exports WarcIO index from 'digital.gov.ru.warc.gz' and writes as 'data.jsonl' with fields listed in '-f' option. 
+.. code-block:: bash
+
+    $ metawarc export -t warcio -f offset,length,filename,http:status,http:content-type,warc-type,warc-target-uri -o data.jsonl digital.gov.ru.warc.gz
+
+Exports text (HTML) content from 'digital.gov.ru.warc.gz' and writes as 'content.jsonl'
+.. code-block:: bash
+
+    $ metawarc export -t content -o content.jsonl digital.gov.ru.warc.gz
+

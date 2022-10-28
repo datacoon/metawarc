@@ -38,8 +38,10 @@ install_requires = [
     'warcio',
     'pdfminer',
     'click',
+    'rich',
     'lxml',
-    'hachoir'
+    'hachoir',
+    'sqlalchemy'
 ]
 
 

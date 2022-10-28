@@ -5,3 +5,5 @@ lxml
 hachoir
 tabulate
 pytest
+rich
+sqlalchemy

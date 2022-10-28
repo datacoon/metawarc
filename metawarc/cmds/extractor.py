@@ -188,29 +188,6 @@ class Extractor:
                     out.write(json.dumps(result, ensure_ascii=False) + "\n")
         out.close()
 
-    def headers(self, fromfile, output="headers.jsonl"):
-        """Reads and returns all headers"""
-        if output is None:
-            output = "headers.jsonl"
-        logging.debug("Preparing %s" % fromfile)
-        resp = open(fromfile, "rb")
-        out = open(output, "w", encoding="utf8")
-        for record in ArchiveIterator(resp, arc2warc=True):
-            if record.rec_type != "response":
-                continue
-            if record.http_headers is not None:
-                r = {
-                    "content-type":
-                    record.http_headers.get_header("content-type"),
-                    "url": record.rec_headers.get_header("WARC-Target-URI"),
-                }
-                headers = dict(record.http_headers.headers)
-                headers["status"] = record.http_headers.get_statuscode()
-                r["headers"] = headers
-                out.write(json.dumps(r, ensure_ascii=False) + "\n")
-        out.close()
-        resp.close()
-
 
 if __name__ == "__main__":
     ex = Extractor()

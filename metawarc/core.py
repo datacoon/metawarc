@@ -6,7 +6,9 @@ import click
 
 from .cmds.analyzer import Analyzer
 from .cmds.extractor import Extractor
-from .cmds.indexer import WARCIndexer
+from .cmds.exporter import Exporter
+from .cmds.indexer import Indexer
+from .cmds.dump import Dumper
 
 # logging.getLogger().addHandler(logging.StreamHandler())
 logging.basicConfig(
@@ -75,7 +77,6 @@ def analyze(inputfile, mode, verbose):
     acmd.analyze(inputfile, mode=mode)
     pass
 
-
 @click.group()
 def cli3():
     pass
@@ -87,44 +88,134 @@ def cli3():
               "-v",
               count=False,
               help="Verbose output. Print additional info")
+@click.option("--type", "-t", "exporttype", default='headers', help="Type of export: headers, warcio, content")
 @click.option(
     "--fields",
     "-f",
-    default="offset,warc-type,warc-target-uri",
-    help="Fieldnames to extract",
+    default="offset,length,filename,http:status,http:content-type,warc-type,warc-target-uri",
+    help="WARCIO export related field names to extract",
 )
-@click.option("--output", "-o", default=None, help="Output file")
-def index(inputfile, verbose, fields, output):
-    """Indexes WARC file"""
+@click.option("--output", "-o", default="export.jsonl", help="Output file")
+def export(inputfile, verbose, exporttype, fields, output):
+    """Exports WARC file headers or warcio index"""
     if verbose:
         enableVerbose()
-    acmd = WARCIndexer()
-    acmd.doindex(inputfile, fields.split(","), output=output)
+    acmd = Exporter()
+    if exporttype == 'headers':
+        acmd.headers_export(inputfile, output=output)
+    elif exporttype == 'warcio':
+        acmd.warcio_indexer_export(inputfile, fields.split(","), output=output)
+    if exporttype == 'content':
+        acmd.content_export(inputfile, output=output, content_types=['text/html'])
     pass
-
 
 @click.group()
 def cli4():
     pass
 
-
-@cli4.command()
+@cli4.command(name="index")
 @click.argument("inputfile")
 @click.option("--verbose",
               "-v",
               count=False,
               help="Verbose output. Print additional info")
-@click.option("--output", "-o", default=None, help="Output file")
-def headers(inputfile, verbose, output):
-    """Dump WARC records headers"""
+def warcindex(inputfile, verbose):
+    """Generates WARC file index"""
     if verbose:
         enableVerbose()
-    acmd = Extractor()
-    acmd.headers(inputfile, output=output)
+    acmd = Indexer()
+    acmd.index_content(inputfile)
+    pass
+
+@click.group()
+def cli5():
+    pass
+
+@cli5.command(name="stats")
+@click.option("--mode",
+              "-m",
+              default="mimes",
+              help="Analysis mode: mimes, exts. Default: mimes")
+@click.option("--verbose",
+              "-v",
+              count=False,
+              help="Verbose output. Print additional info")
+def stats(mode, verbose):
+    """Generates WARC file index"""
+    if verbose:
+        enableVerbose()
+    acmd = Indexer()
+    acmd.calc_stats(mode)
     pass
 
 
-cli = click.CommandCollection(sources=[cli1, cli2, cli3, cli4()])
+@click.group()
+def cli6():
+    pass
+
+@cli6.command(name="list")
+@click.option("--mimes",
+              "-m",
+              default=None,
+              help="Mimes list, default None")
+@click.option("--exts",
+              "-e",
+              default=None,
+              help="File extensions, default: None")
+@click.option("--query",
+              "-q",
+              default=None,
+              help="Custom SQL query to select records")
+@click.option("--verbose",
+              "-v",
+              count=False,
+              help="Verbose output. Print additional info")
+@click.option("--output",
+              "-o",
+              default=None,
+              help="Output file (CSV)")
+def listfiles(mimes, exts, query, verbose, output):
+    """Lists urls inside WARC file"""
+    if verbose:
+        enableVerbose()
+    acmd = Dumper()
+    acmd.listfiles(mimes=mimes, exts=exts, query=query, output=output)
+    pass
+
+@click.group()
+def cli7():
+    pass
+
+@cli7.command(name="dump")
+@click.option("--mimes",
+              "-m",
+              default=None,
+              help="Mimes list, default None")
+@click.option("--exts",
+              "-e",
+              default=None,
+              help="File extensions, default: None")
+@click.option("--query",
+              "-q",
+              default=None,
+              help="Custom SQL query to select records")
+@click.option("--verbose",
+              "-v",
+              count=False,
+              help="Verbose output. Print additional info")
+@click.option("--output",
+              "-o",
+              default='dump',
+              help="Output dir. Default: dump")
+def dump(mimes, exts, query, verbose, output):
+    """Dumps content by query"""
+    if verbose:
+        enableVerbose()
+    acmd = Dumper()
+    acmd.dump(mimes=mimes, exts=exts, query=query, output=output)
+    pass
+
+cli = click.CommandCollection(sources=[cli1, cli2, cli3, cli4, cli5, cli6, cli7])
 
 # if __name__ == '__main__':
 #    cli()
