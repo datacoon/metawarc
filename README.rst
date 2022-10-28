@@ -157,16 +157,19 @@ Export command
 Extracts HTTP headers, WARC headers or text content from WARC file and saves as NDJSON (JSON lines) data file.
 
 Exports http headers from 'digital.gov.ru.warc.gz' and writes as 'headers.jsonl'
+
 .. code-block:: bash
 
     $ metawarc export -t headers -o headers.jsonl digital.gov.ru.warc.gz
 
 Exports WarcIO index from 'digital.gov.ru.warc.gz' and writes as 'data.jsonl' with fields listed in '-f' option. 
+
 .. code-block:: bash
 
     $ metawarc export -t warcio -f offset,length,filename,http:status,http:content-type,warc-type,warc-target-uri -o data.jsonl digital.gov.ru.warc.gz
 
 Exports text (HTML) content from 'digital.gov.ru.warc.gz' and writes as 'content.jsonl'
+
 .. code-block:: bash
 
     $ metawarc export -t content -o content.jsonl digital.gov.ru.warc.gz
