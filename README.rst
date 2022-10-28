@@ -135,7 +135,7 @@ Analyzes 'digital.gov.ru.warc.gz' and writes 'metawarc.db' with HTTP metadata.
 
     $ metawarc index digital.gov.ru.warc.gz
 
-Index command
+Stats command
 -------------
 Same as 'analyze' command but uses 'metawarc.db' to speed up data processing. Returns total length and count of records by each mime or file extension.
 
@@ -173,4 +173,50 @@ Exports text (HTML) content from 'digital.gov.ru.warc.gz' and writes as 'content
 .. code-block:: bash
 
     $ metawarc export -t content -o content.jsonl digital.gov.ru.warc.gz
+
+List command
+------------
+Prints list of records with id, offset, length and url using 'metawarc.db'. Accepts list of mime types or list of file extensions or query as WHERE clause
+
+Prints all records with mime type (content type) 'application/zip'
+
+.. code-block:: bash
+
+    $ metawarc list -m 'application/zip'
+
+Prints all records with file extensions 'xls' and 'xlsx'
+
+.. code-block:: bash
+
+    $ metawarc list -e xls,xlsx
+
+Prints all records with size greater than 10M and file extension 'pdf'
+
+.. code-block:: bash
+
+    $ metawarc list -q 'content_length > 10000000 and ext = "pdf"'
+
+
+Dump command
+------------
+Dumps records payloads as files using 'metawarc.db' as WARC index. Accepts list of mime types or list of file extensions or query as WHERE clause.
+Adds CSV file 'records.csv' to the output directory with basic data about each dumped record.
+
+Dumps all records with mime type (content type) 'application/zip' to 'allzip' directory
+
+.. code-block:: bash
+
+    $ metawarc dump -m 'application/zip' -o allzip
+
+Dumps all records with file extensions 'xls' and 'xlsx' to 'sheets' directory
+
+.. code-block:: bash
+
+    $ metawarc dump -e xls,xlsx -o sheets
+
+Dumps all records with size greater than 10M and file extension 'pdf' to 'bigpdf' directory
+
+.. code-block:: bash
+
+    $ metawarc dump -q 'content_length > 10000000 and ext = "pdf"' -o 'bigpdf'
 
