@@ -51,7 +51,9 @@ MIME_EXT_MAP = {'application/javascript' : 'js',
 'application/x-font-ttf' : 'ttf',
 'image/tiff' : 'tif',
 'text/xml' : 'xml',
-'images/webp' : 'webp'
+'images/webp' : 'webp',
+'audio/ogg' : 'ogg',
+'application/x-bzip2' : 'bz2',
 }
 
 def get_ext_from_content_type(content_type):
@@ -59,7 +61,7 @@ def get_ext_from_content_type(content_type):
     content_type = content_type.split(';', 1)[0]
     if content_type in MIME_EXT_MAP.keys():
         return MIME_EXT_MAP[content_type]
-    return unknown
+    return 'unknown'
 
 class Dumper:
     """Dumps data files from WARC file"""
@@ -125,7 +127,7 @@ class Dumper:
             print('At least one parameter: query, exts or mimes should be provided')
             return 
         outdata = []
-        headers = ['offset', 'url', 'length', 'content-type', 'ext', 'status', 'warc_id']
+        headers = ['offset', 'filename', 'url', 'length', 'content-type', 'ext', 'status', 'warc_id']
         os.makedirs(output, exist_ok=True)
         opened_files = {}
         for record in results:            
@@ -138,8 +140,7 @@ class Dumper:
             it = iter(ArchiveIterator(fileobj))
             warcrec = next(it)
             filename = record.warc_id + '.' + get_ext_from_content_type(record.content_type)
-            outdata.append([record.offset, filename, record.url, record.length, record.content_type, record.ext, record.status_code, record.warc_id])
-            
+            outdata.append([record.offset, filename, record.url, record.length, record.content_type, record.ext, record.status_code, record.warc_id])            
             out_raw = open(os.path.join(output, filename), 'wb')
             stream = warcrec.content_stream()
             buf = stream.read(READ_SIZE)
