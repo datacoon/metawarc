@@ -15,7 +15,7 @@ from pdfminer.pdfdocument import PDFDocument
 from pdfminer.pdfparser import PDFParser
 from warcio import ArchiveIterator
 
-from ..constants import SUPPORTED_FILE_TYPES, MS_XML_FILES, MIME_MAP, ADOBE_FILES
+from ..constants import SUPPORTED_FILE_TYPES, MS_XML_FILES, MIME_SHORT_MAP, ADOBE_FILES
 
 
 def extractPDF(filename):
@@ -82,8 +82,8 @@ def processWarcRecord(record,
                       fields=None,
                       debug=False):
     """Processes single WARC record"""
-    if mime and mime in MIME_MAP.keys():
-        ext = MIME_MAP[mime]
+    if mime and mime in MIME_SHORT_MAP.keys():
+        ext = MIME_SHORT_MAP[mime]
     else:
         ext = filename.rsplit(".", 1)[-1]
     temp = tempfile.NamedTemporaryFile(

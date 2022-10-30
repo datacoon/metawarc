@@ -7,7 +7,7 @@ import io
 from warcio import ArchiveIterator
 from warcio.utils import BUFF_SIZE
 from ..base import models
-
+from ..contacts import MIME_EXT_MAP
 
 READ_SIZE = BUFF_SIZE * 4
 
@@ -15,79 +15,6 @@ from sqlalchemy import create_engine, func
 from sqlalchemy.orm import Session
 
 
-# Common mime types to extension mappings
-# Source: https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/MIME_types/Common_types
-
-MIME_EXT_MAP = {
-'application/atom+xml' : 'xml',
-'application/epub+zip' : 'epub',
-'application/gzip' : 'gz',
-'application/java-archive' : 'jar',
-'application/javascript' : 'js',
-'application/json' : 'json',
-'application/ld+json' : 'jsonld',
-'application/msword' : 'doc',
-'application/octet-stream' : 'bin',
-'application/pdf' : 'pdf',
-'application/rar' : 'rar',
-'application/rss+xml' : 'xml',
-'application/rtf' : 'rtf',
-'application/vnd.android.package-archive' : 'apk',
-'application/vnd.ms-excel' : 'xls',
-'application/vnd.ms-fontobject' : 'eot',
-'application/vnd.oasis.opendocument.presentation' : 'ogp',
-'application/vnd.oasis.opendocument.spreadsheet' : 'ods',
-'application/vnd.oasis.opendocument.text' : 'odt',
-'application/vnd.rar' : 'rar',
-'application/vnd.visio' : 'vsd',
-'application/x-font-woff' : 'woff',
-'application/x-7z-compressed' : '7z',
-'application/x-bzip' : 'bz',
-'application/x-bzip2' : 'bz2',
-'application/x-font-ttf' : 'ttf',
-'application/x-javascript' : 'js',
-'application/x-tar' : 'tar',
-'application/x-x509-ca-cert' : 'crt',
-'application/x-zip-compressed' : 'zip',
-'application/xml' : 'xml',
-'application/zip' : 'zip',
-
-'audio/mp3' : 'mp3',
-'audio/mpeg' : 'mp3',
-'audio/ogg' : 'ogg',
-'audio/x-wav' : 'wav',
-'audio/wav' : 'wav',
-'audio/webm' : 'weba',
-
-'font/otf' : 'otf',
-'font/ttf' : 'ttf',
-'font/woff' : 'woff',
-'font/woff2' : 'woff2',
-
-'image/bmp' : 'bmp',
-'image/gif' : 'gif',
-'image/jpeg' : 'jpg',
-'image/png' : 'png',
-'image/svg+xml' : 'svg',
-'image/tiff' : 'tif',
-'image/webp' : 'webp',
-'image/x-icon' : 'ico',
-
-'text/calendar' : 'ics',
-'text/css' : 'css',
-'text/csv' : 'csv',
-'text/html' : 'html',
-'text/plain' : 'txt',
-'text/xml' : 'xml',
-
-'video/mp2t' : 'ts',
-'video/mp4' : 'mp4',
-'video/ogg' : 'ogv',
-'video/quicktime' : 'mov',
-'video/webm' : 'webm',
-'video/x-ms-wmv' : 'wmv',
-'video/x-msvideo' : 'avi'
-}
 
 def get_ext_from_content_type(content_type):
     """Returns base extension for content types"""
