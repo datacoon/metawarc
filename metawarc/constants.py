@@ -43,6 +43,7 @@ MIME_EXT_MAP = {
 'application/x-bzip2' : 'bz2',
 'application/x-font-ttf' : 'ttf',
 'application/x-javascript' : 'js',
+'application/x-netcdf' : 'cdf',
 'application/x-pdf' : 'pdf',
 'application/x-shapefile' : 'shp',
 'application/x-tar' : 'tar',
