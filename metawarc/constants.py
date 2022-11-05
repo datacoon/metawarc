@@ -114,7 +114,7 @@ MIME_SHORT_MAP = {
     "image/jpeg": "jpg",
 }
 
-MIME_PATTERNS = list(MIME_MAP.keys())
+MIME_PATTERNS = list(MIME_EXT_MAP.keys())
 
 XFIELDMAP = {
     "author": "creator",
