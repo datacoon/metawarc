@@ -45,6 +45,7 @@ MIME_EXT_MAP = {
 'application/x-javascript' : 'js',
 'application/x-netcdf' : 'cdf',
 'application/x-pdf' : 'pdf',
+'application/x-rar-compressed' : 'rar',
 'application/x-shapefile' : 'shp',
 'application/x-tar' : 'tar',
 'application/x-turtle' : 'ttl',

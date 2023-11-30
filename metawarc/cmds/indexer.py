@@ -97,17 +97,21 @@ class Indexer:
         if mode == 'mimes':
              results = session.query(models.Record.content_type, func.sum(models.Record.content_length), func.count(models.Record.warc_id)).group_by(models.Record.content_type).all()        
              title = 'Group by mime type'
-             headers = ('mime', 'size', 'count')
+             headers = ('mime', 'size', 'size share', 'count')
         elif mode == 'exts':
              results = session.query(models.Record.ext, func.sum(models.Record.content_length), func.count(models.Record.warc_id)).group_by(models.Record.ext).all()        
              title = 'Group by file extension'
-             headers = ('extension', 'size', 'count')
+             headers = ('extension', 'size', 'size share', 'count')
   
         reptable = Table(title=title)
         reptable.add_column(headers[0], justify="left", style="magenta")
         for key in headers[1:-1]:
             reptable.add_column(key, justify="left", style="cyan", no_wrap=True)
         reptable.add_column(headers[-1], justify="right", style="cyan")
+        total_size = 0
         for row in results:
-            reptable.add_row(*map(str, row))
+            total_size += row[1]
+        for row in results:
+            result = [row[0], row[1], '%0.2f%%' % (row[1] *100.0 / total_size), row[2]]
+            reptable.add_row(*map(str, result))
         print(reptable)

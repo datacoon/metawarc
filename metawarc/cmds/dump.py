@@ -7,7 +7,7 @@ import io
 from warcio import ArchiveIterator
 from warcio.utils import BUFF_SIZE
 from ..base import models
-from ..contacts import MIME_EXT_MAP
+from ..constants import MIME_EXT_MAP
 
 READ_SIZE = BUFF_SIZE * 4
 
@@ -18,9 +18,10 @@ from sqlalchemy.orm import Session
 
 def get_ext_from_content_type(content_type):
     """Returns base extension for content types"""
-    content_type = content_type.split(';', 1)[0]
-    if content_type in MIME_EXT_MAP.keys():
-        return MIME_EXT_MAP[content_type]
+    if content_type is not None:
+        content_type = content_type.split(';', 1)[0]
+        if content_type in MIME_EXT_MAP.keys():
+            return MIME_EXT_MAP[content_type]
     return 'unknown'
 
 class Dumper:

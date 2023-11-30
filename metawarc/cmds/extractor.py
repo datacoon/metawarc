@@ -107,12 +107,12 @@ def processWarcRecord(record,
         result["msg"] = "Zero length file %s. Skip" % (filename)
         logging.info("Zero length file %s. Skip" % (filename))
         return result
-    if ext in MS_XML_FILES or (mime in MIME_MAP.keys()
-                               and MIME_MAP[mime] in MS_XML_FILES):
+    if ext in MS_XML_FILES or (mime in MIME_SHORT_MAP.keys()
+                               and MIME_SHORT_MAP[mime] in MS_XML_FILES):
         meta = extractXmeta(temp.name)
         result["metadata"] = meta
-    elif ext in ADOBE_FILES or (mime in MIME_MAP.keys()
-                                and MIME_MAP[mime] in ADOBE_FILES):
+    elif ext in ADOBE_FILES or (mime in MIME_SHORT_MAP.keys()
+                                and MIME_SHORT_MAP[mime] in ADOBE_FILES):
         meta = extractPDF(temp.name)
         result["metadata"] = meta
     else:
@@ -165,7 +165,7 @@ class Extractor:
             output = "metadata.jsonl"
         logging.debug("Preparing %s" % fromfile)
         file_mimes = {}
-        for mime, ext in MIME_MAP.items():
+        for mime, ext in MIME_SHORT_MAP.items():
             if ext in file_types:
                 file_mimes[mime] = ext
         resp = open(fromfile, "rb")
