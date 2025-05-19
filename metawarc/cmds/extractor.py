@@ -15,7 +15,7 @@ from pdfminer.pdfdocument import PDFDocument
 from pdfminer.pdfparser import PDFParser
 from warcio import ArchiveIterator
 
-from ..constants import SUPPORTED_FILE_TYPES, MS_XML_FILES, MIME_SHORT_MAP, ADOBE_FILES
+from ..constants import SUPPORTED_FILE_TYPES, MS_XML_FILES, MIME_SHORT_MAP, ADOBE_FILES, IMAGE_FILES, MS_OLE_FILES
 
 
 def extractPDF(filename):
@@ -78,7 +78,7 @@ def extractXmeta(filename):
 def processWarcRecord(record,
                       url,
                       filename,
-                      mime=None,
+                      mime=None, source=None,
                       fields=None,
                       debug=False):
     """Processes single WARC record"""
@@ -95,6 +95,7 @@ def processWarcRecord(record,
     temp.write(record.raw_stream.read())
     temp.close()
     result = {
+        "source" : source,
         "filename": filename,
         "ext": ext,
         "url": url,
@@ -140,7 +141,9 @@ def processWarcRecord(record,
                 result[
                     "msg"] = "Unable to extract metadata from: %s" % filename
             else:
-                result["metadata"] = metadata.exportDictionary()
+                thedict = metadata.exportDictionary()
+                if 'Metadata' in thedict.keys(): thedict = thedict['Metadata']
+                result["metadata"] = thedict
 
     return result
 

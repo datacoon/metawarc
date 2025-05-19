@@ -3,6 +3,8 @@
 import logging
 
 import click
+import os
+import glob
 
 from .cmds.analyzer import Analyzer
 from .cmds.extractor import Extractor
@@ -11,15 +13,15 @@ from .cmds.indexer import Indexer
 from .cmds.dump import Dumper
 
 # logging.getLogger().addHandler(logging.StreamHandler())
-logging.basicConfig(
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    level=logging.DEBUG)
+#logging.basicConfig(
+#    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+#    level=logging.INFO)
 
 
 def enableVerbose():
     logging.basicConfig(
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        level=logging.DEBUG,
+        level=logging.INFO,
     )
 
 
@@ -70,7 +72,7 @@ def cli2():
               count=False,
               help="Verbose output. Print additional info")
 def analyze(inputfile, mode, verbose):
-    """Analysis of the WARC"""
+    """Analysis of the WARC (requires WARC index)"""
     if verbose:
         enableVerbose()
     acmd = Analyzer()
@@ -115,16 +117,34 @@ def cli4():
 
 @cli4.command(name="index")
 @click.argument("inputfile")
+@click.option("--tofile",
+              "-o",
+              default="warcindex.db",
+              help="Name of the output db file. Default: warcindex.db")     
+@click.option("--tables",
+              "-t",
+              default="links",
+              help="Comma separated list of tables. Default: links. Possible values: links, pdfs, images, ooxmldocs, oledocs")                          
 @click.option("--verbose",
               "-v",
               count=False,
-              help="Verbose output. Print additional info")
-def warcindex(inputfile, verbose):
-    """Generates WARC file index"""
+              help="Verbose output. Print additional info")          
+@click.option("--update",
+              "-u",
+              count=False,
+              help="Update database index if it exists")          
+def warcindex(inputfile, tofile, tables, update, verbose):
+    """Builds WARC file index as DuckDB database file"""
     if verbose:
         enableVerbose()
+    if os.path.exists(tofile) and not update:
+        print(f'Output database {tofile} already exists. Please choose another file name or use update option')
+        return
     acmd = Indexer()
-    acmd.index_content(inputfile)
+    all_tables = ['records', 'headers']
+    all_tables += tables.split(',')
+    files = glob.glob(inputfile)
+    acmd.index_content(files, tofile, all_tables)
     pass
 
 @click.group()
@@ -136,16 +156,20 @@ def cli5():
               "-m",
               default="mimes",
               help="Analysis mode: mimes, exts. Default: mimes")
+@click.option("--dbfile",
+              "-i",
+              default="warcindex.db",
+              help="Name of the db file. Default: warcindex.db")               
 @click.option("--verbose",
               "-v",
               count=False,
               help="Verbose output. Print additional info")
-def stats(mode, verbose):
-    """Generates WARC file index"""
+def stats(mode, dbfile, verbose):
+    """Generates mime or exts statistics"""
     if verbose:
         enableVerbose()
     acmd = Indexer()
-    acmd.calc_stats(mode)
+    acmd.calc_stats(dbfile, mode)
     pass
 
 

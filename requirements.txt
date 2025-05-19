@@ -6,4 +6,4 @@ hachoir
 tabulate
 pytest
 rich
-sqlalchemy
+fastwarc
