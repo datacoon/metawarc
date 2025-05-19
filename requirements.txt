@@ -6,4 +6,7 @@ hachoir
 tabulate
 pytest
 rich
+pyarrow
+duckdb
+bs4
 fastwarc

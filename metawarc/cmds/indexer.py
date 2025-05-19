@@ -49,7 +49,7 @@ def cdx_size_counter(filename):
     return bufcount(filename) - 1
 
 
-DEFAULT_LINK_ATTRS = ['class', 'id', 'href']
+DEFAULT_LINK_ATTRS = ['href', 'class', 'id']
 
 
 ALL_TABLES = ['records', 'headers','links', 'oledocs', 'ooxmldocs', 'images', 'pdfs']
