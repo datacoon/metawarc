@@ -133,7 +133,11 @@ def cli4():
               "-u",
               count=False,
               help="Update database index if it exists")          
-def warcindex(inputfile, tofile, tables, update, verbose):
+@click.option("--silent",
+              "-s",
+              count=False,
+              help="Do everything silent")          
+def warcindex(inputfile, tofile, tables, update, silent,verbose):
     """Builds WARC file index as DuckDB database file"""
     if verbose:
         enableVerbose()
@@ -144,7 +148,7 @@ def warcindex(inputfile, tofile, tables, update, verbose):
     all_tables = ['records', 'headers']
     all_tables += tables.split(',')
     files = glob.glob(inputfile)
-    acmd.index_content(files, tofile, all_tables)
+    acmd.index_content(files, tofile, all_tables, silent=silent)
     pass
 
 @click.group()

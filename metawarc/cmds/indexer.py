@@ -6,11 +6,12 @@ import json
 import io
 from fastwarc.warc import ArchiveIterator, WarcRecordType
 #from warcio import ArchiveIterator
-#C:\workspace\public\ruarxive\metawarc\metawarc\cmds\indexer.pyfrom warcio.utils import BUFF_SIZE
+from warcio.utils import BUFF_SIZE
 import duckdb
 import pyarrow as pa
 from io import BytesIO
 import glob
+import tqdm
 
 #from lxml import etree, html
 from bs4 import BeautifulSoup
@@ -60,7 +61,7 @@ class Indexer:
     def __init__(self):
         pass
 
-    def index_content(self, fromfiles, tofile='warcindex.db', tables=['records',]):
+    def index_content(self, fromfiles:list, tofile:str='warcindex.db', tables:list=['records',], silent:bool=False):
         """Generates DuckDB database as WARC index"""
         from rich.progress import track
         from rich import print
@@ -76,9 +77,10 @@ class Indexer:
             logging.debug("Indexing %s" % fromfile)
             resp = open(fromfile, "rb")  
             iterator = ArchiveIterator(resp, record_types=WarcRecordType.response)
+#            iterator = ArchiveIterator(resp)
                             
             cdx_filename = fromfile.rsplit('.', 2)[0] + '.cdx'
-            records_num = None
+            records_num = -1
             if os.path.exists(cdx_filename):
                 records_num = cdx_size_counter(cdx_filename)
                 print('CDX file found. Estimated number of WARC records %d' % (records_num))
@@ -92,8 +94,8 @@ class Indexer:
             list_ooxmldocs = []        
             list_pdfs = []
             list_images = []
-
-            for record in iterator:
+            it = iterator if silent else tqdm.tqdm(iterator, desc='Iterate records', total=records_num)
+            for record in it:
     #            print(dir(record))
 #                print(record.record_type)
 #                print(record)
@@ -101,10 +103,11 @@ class Indexer:
 #                    continue
 
                 n += 1      
-                if records_num is not None:
-                    if n % THRESHOLD == 0: print('Processed %d (%0.2f%%) records' % (n, n*100.0 / records_num))            
-                else:
-                    if n % THRESHOLD == 0: print('Processed %d records' % (n))
+#                if not silent:
+#                    if records_> 0:
+#                        if n % THRESHOLD == 0: print('Processed %d (%0.2f%%) records' % (n, n*100.0 / records_num))            
+#                    else:
+#                        if n % THRESHOLD == 0: print('Processed %d records' % (n))
                 if record.http_headers is not None:
                     dbrec = {}
                     dbrec['warc_id'] = record.headers["WARC-Record-ID"].rsplit(':', 1)[-1].strip('>')
@@ -127,7 +130,7 @@ class Indexer:
                             out_raw.write(buf)
                             buf = record.reader.read(READ_SIZE)
                         try:
-                            root = BeautifulSoup(out_raw.getvalue())
+                            root = BeautifulSoup(out_raw.getvalue(), features='lxml')
 #                            root = etree.fromstring(out_raw.getvalue(), parser)  
                             if root is not None:
                                 links = root.find_all('a')

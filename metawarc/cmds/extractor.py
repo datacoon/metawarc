@@ -92,7 +92,8 @@ def processWarcRecord(record,
         mode="wb",
         delete=False if debug else False,
     )
-    temp.write(record.raw_stream.read())
+#    temp.write(record.raw_stream.read())
+    temp.write(record.reader.read())
     temp.close()
     result = {
         "source" : source,
@@ -103,7 +104,7 @@ def processWarcRecord(record,
         "metadata": None,
         "error": False,
     }
-    if record.payload_length == 0:
+    if record.content_length == 0:
         result["error"] = True
         result["msg"] = "Zero length file %s. Skip" % (filename)
         logging.info("Zero length file %s. Skip" % (filename))
