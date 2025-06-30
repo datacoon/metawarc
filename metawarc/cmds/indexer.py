@@ -4,8 +4,7 @@ from datetime import datetime
 import logging
 import json
 import io
-from fastwarc.warc import ArchiveIterator, WarcRecordType
-#from warcio import ArchiveIterator
+from warcio import ArchiveIterator
 from warcio.utils import BUFF_SIZE
 import duckdb
 import pyarrow as pa
@@ -16,7 +15,7 @@ import tqdm
 #from lxml import etree, html
 from bs4 import BeautifulSoup
 
-from ..constants import SUPPORTED_FILE_TYPES, IMAGE_FILES, MS_XML_FILES, MIME_SHORT_MAP, ADOBE_FILES, MS_OLE_FILES
+from ..constants import SUPPORTED_FILE_TYPES, IMAGE_FILES, MS_XML_FILES, MIME_SHORT_MAP, ADOBE_FILES, MS_OLE_FILES, HTML_FILES, MIMES_EXT_TYPE_BY_GROUP
 
 from hachoir.metadata import extractMetadata
 from hachoir.parser import createParser
@@ -55,52 +54,62 @@ DEFAULT_LINK_ATTRS = ['href', 'class', 'id']
 
 ALL_TABLES = ['records', 'headers','links', 'oledocs', 'ooxmldocs', 'images', 'pdfs']
 
+def dump_table(filename:str, table:list, con=None):    
+    if len(table) == 0: return
+    table_records = pa.Table.from_pylist(table)    
+    query = f"COPY (SELECT * FROM table_records) to '{filename}' (COMPRESSION zstd, COMPRESSION_LEVEL 9)"
+    if con is not None:
+        con.sql(query)
+    else:
+        duckdb.sql(query)
+
+
 class Indexer:
     """Indexes WARC file metadata"""
 
     def __init__(self):
         pass
 
-    def index_content(self, fromfiles:list, tofile:str='warcindex.db', tables:list=['records',], silent:bool=False):
-        """Generates DuckDB database as WARC index"""
+    def index_records(self, fromfiles:list, tofile:str='warcindex.db', tables:list=['records', 'headers'], silent:bool=False):
+        """Generates DuckDB database and parquet files as WARC index"""
         from rich.progress import track
         from rich import print
-
-#        parser = etree.HTMLParser()  
-
         
         real_tables = ALL_TABLES.copy() if tables is None or 'all' in tables else tables
         
+        con = duckdb.connect(tofile)
+        list_files = []
+        list_tables = []
+        glob_tables = [x[0] for x in con.sql('show tables').fetchall()]
+
         for fromfile in fromfiles:
-            con = duckdb.connect(tofile)
-            tables = [x[0] for x in con.sql('show tables').fetchall()]
+            file_record = {'filename' : fromfile, 'filesize' : os.path.getsize(fromfile)}
             logging.debug("Indexing %s" % fromfile)
             resp = open(fromfile, "rb")  
-            iterator = ArchiveIterator(resp, record_types=WarcRecordType.response)
-#            iterator = ArchiveIterator(resp)
+            file_basename = os.path.basename(fromfile).lower()
+            if file_basename[-5:] == '.warc': 
+                file_basename - file_basename[0:-5]
+            elif file_basename[-8:] == '.warc.gz': 
+                file_basename = file_basename[0:-8]
+
+            iterator = ArchiveIterator(resp)
                             
             cdx_filename = fromfile.rsplit('.', 2)[0] + '.cdx'
             records_num = -1
             if os.path.exists(cdx_filename):
                 records_num = cdx_size_counter(cdx_filename)
-                print('CDX file found. Estimated number of WARC records %d' % (records_num))
+                if not silent:
+                    print('CDX file found. Estimated number of WARC records %d' % (records_num))
             else:
-                print("No CDX file. Cant measure progress")
+                if not silent:
+                    print("No CDX file. Can't measure progress")
             n = 0 
             list_records = []
             list_headers = []
-            list_links = []
-            list_oledocs = []
-            list_ooxmldocs = []        
-            list_pdfs = []
-            list_images = []
-            it = iterator if silent else tqdm.tqdm(iterator, desc='Iterate records', total=records_num)
+
+            it = iterator if silent else tqdm.tqdm(iterator, desc='Iterate records', total=records_num*2)
             for record in it:
-    #            print(dir(record))
-#                print(record.record_type)
-#                print(record)
-#                if record.record_type != "response":
-#                    continue
+                if record.rec_type != "response": continue
 
                 n += 1      
 #                if not silent:
@@ -110,8 +119,8 @@ class Indexer:
 #                        if n % THRESHOLD == 0: print('Processed %d records' % (n))
                 if record.http_headers is not None:
                     dbrec = {}
-                    dbrec['warc_id'] = record.headers["WARC-Record-ID"].rsplit(':', 1)[-1].strip('>')
-                    dbrec['url'] = record.headers["WARC-Target-URI"]
+                    dbrec['warc_id'] = record.rec_headers["WARC-Record-ID"].rsplit(':', 1)[-1].strip('>')
+                    dbrec['url'] = record.rec_headers["WARC-Target-URI"]
                     content_type = record.http_headers["content-type"] if 'content-type' in record.http_headers else None
                     dbrec['content_type'] = content_type
                     charset = None
@@ -122,53 +131,18 @@ class Indexer:
                         if charset.find('=') > -1:
                             charset = charset.split('=', 1)[-1].lower().strip()
 
-                    if 'links' in real_tables and content_type_no_ch == 'text/html':
-#                        stream = record.content_stream()                                        
-                        out_raw = BytesIO()
-                        buf = record.reader.read(READ_SIZE)
-                        while buf:
-                            out_raw.write(buf)
-                            buf = record.reader.read(READ_SIZE)
-                        try:
-                            root = BeautifulSoup(out_raw.getvalue(), features='lxml')
-#                            root = etree.fromstring(out_raw.getvalue(), parser)  
-                            if root is not None:
-                                links = root.find_all('a')
-                                if links is not None:
-                                    for l in links:
-                                        lrec = {'warc_id' : dbrec['warc_id'], 'source' : fromfile, 'url' : dbrec['url'], '_text' : l.text}
-                                        for att in DEFAULT_LINK_ATTRS:
-                                            if att in l.attrs.keys(): lrec[att] = l.attrs[att]
-                                        list_links.append(lrec)
-                        except KeyboardInterrupt:
-                            pass
-                        except ValueError:
-                            logging.info('Error parsing links from %s' % (dbrec['url']))                    
-                            pass
-
 
                     filename = dbrec['url'].rsplit("?", 1)[0].rsplit("/", 1)[-1].lower()
                     ext = filename.rsplit(".", 1)[-1]
-                    if content_type_no_ch is not None and content_type_no_ch in MIME_SHORT_MAP.keys():
-                        if MIME_SHORT_MAP[content_type_no_ch] in MS_OLE_FILES and 'oledocs' in real_tables:
-                            list_oledocs.append(processWarcRecord(record, dbrec['url'], filename, mime=content_type_no_ch, source=fromfile))
-                        if MIME_SHORT_MAP[content_type_no_ch] in MS_XML_FILES and 'ooxmldocs' in real_tables:
-                            list_ooxmldocs.append(processWarcRecord(record, dbrec['url'], filename, mime=content_type_no_ch, source=fromfile))
-                        if MIME_SHORT_MAP[content_type_no_ch] in ADOBE_FILES and 'pdfs' in real_tables:
-                            list_pdfs.append(processWarcRecord(record, dbrec['url'], filename, mime=content_type_no_ch, source=fromfile))
-                        if MIME_SHORT_MAP[content_type_no_ch] in IMAGE_FILES and 'images' in real_tables:
-                            list_images.append(processWarcRecord(record, dbrec['url'], filename, mime=content_type_no_ch, source=fromfile))
-
-
 
                     dbrec['c_type'] = content_type_no_ch
                     dbrec['c_type_charset'] = charset
-                    dbrec['offset'] = record.stream_pos
-                    dbrec['length'] = record.content_length
-                    warc_date  = record.headers["WARC-Date"]
+                    dbrec['offset'] = it.iterable.get_record_offset()
+                    dbrec['length'] = it.iterable.get_record_length()
+                    warc_date  = record.rec_headers["WARC-Date"]
                     dbrec['rec_date'] = datetime.strptime(warc_date, "%Y-%m-%dT%H:%M:%S%z")
-                    dbrec['content_length'] = int(record.headers["Content-Length"])
-                    dbrec['status_code'] = int(record.http_headers.status_code)                
+                    dbrec['content_length'] = int(record.rec_headers["Content-Length"])
+                    dbrec['status_code'] = int(record.http_headers.statusline.split(' ', 1)[0])                
                     dbrec['source'] = fromfile
                     dbrec['filename'] = dbrec['url'].rsplit("?", 1)[0].rsplit("/", 1)[-1].lower() 
                     dbrec['ext'] = dbrec['filename'].rsplit(".", 1)[-1] if dbrec['filename'].find(".") > -1 else ""
@@ -176,69 +150,157 @@ class Indexer:
                     if 'records' in real_tables:
                         list_records.append(dbrec)
                     if 'headers' in real_tables:
-                        for key, value in dict(record.http_headers).items():
+                        for key, value in record.http_headers.headers:
                             properties.append({'key' : key, 'value' : value, 'warc_id' : dbrec['warc_id'], 'source': fromfile})
                         list_headers.extend(properties)        
 
             resp.close()
 
-            if 'records' in real_tables:
-                pa_records = pa.Table.from_pylist(list_records)
-                if 'records' not in tables:
-                    con.sql("CREATE TABLE records AS SELECT * FROM pa_records")
-                else:
-                    con.sql("DELETE FROM records where source = '%s'" % (fromfile))
-                    con.sql("INSERT INTO records SELECT * FROM pa_records")
+            os.makedirs('data', exist_ok=True)
+            if 'records' in real_tables:                
+                dump_table(filename='data/' + file_basename + '_records.parquet', table=list_records, con=con)
+                list_tables.append({'warcfile' : fromfile, 'path' :'data/' + file_basename + '_records.parquet', 'type' : 'records', 'num_items' : len(list_records)})
+                if not silent:
+                    print('- saved %s with %s' % ('data/' + file_basename + '_records.parquet', 'records'))
             if 'headers' in real_tables:
-                pa_headers = pa.Table.from_pylist(list_headers)
+                dump_table(filename='data/' +file_basename + '_headers.parquet', table=list_headers, con=con)
+                list_tables.append({'warcfile' : fromfile, 'path' :'data/' + file_basename + '_headers.parquet', 'type' : 'headers', 'num_items' : len(list_headers)})
+                if not silent:
+                    print('- saved %s with %s' % ('data/' + file_basename + '_headers.parquet', 'headers'))
+            file_record['num_records'] = len(list_records)
+            list_files.append(file_record)
 
-                if 'headers' not in tables:
-                    con.sql("CREATE TABLE headers AS SELECT * FROM pa_headers")
-                else:
-                    con.sql("DELETE FROM headers where source = '%s'" % (fromfile))
-                    con.sql("INSERT INTO headers SELECT * FROM pa_headers")
-            if 'links' in real_tables:
-                pa_links = pa.Table.from_pylist(list_links)                    
-                if 'links' not in tables:
-                    con.sql("CREATE TABLE links AS SELECT * FROM pa_links")
-                else:
-                    con.sql("DELETE FROM links where source = '%s'" % (fromfile))
-                    con.sql("INSERT INTO links SELECT * FROM pa_links")
-            if 'ooxmldocs' in real_tables:
-                pa_ooxmldocs = pa.Table.from_pylist(list_ooxmldocs)
-                if 'ooxmldocs' not in tables:
-                    con.sql("CREATE TABLE ooxmldocs AS SELECT * FROM pa_ooxmldocs")
-                else:
-                    con.sql("DELETE FROM ooxmldocs where source = '%s'" % (fromfile))
-                    con.sql("INSERT INTO ooxmldocs SELECT * FROM pa_ooxmldocs")
-            if 'oledocs' in real_tables:
-                pa_oledocs = pa.Table.from_pylist(list_oledocs)
-                if 'oledocs' not in tables:
-                    con.sql("CREATE TABLE oledocs AS SELECT * FROM pa_oledocs")
-                else:
-                    con.sql("DELETE FROM oledocs where source = '%s'" % (fromfile))
-                    con.sql("INSERT INTO oledocs SELECT * FROM pa_oledocs")
-            if 'pdfs' in real_tables:
-                pa_pdfs = pa.Table.from_pylist(list_pdfs)
-                if 'pdfs' not in tables:
-                    try:
-                        con.sql("CREATE TABLE pdfs AS SELECT * FROM pa_pdfs")
-                    except: 
-                        pass
-                else:
-                    con.sql("DELETE FROM pdfs where source = '%s'" % (fromfile))
-                    con.sql("INSERT INTO pdfs SELECT * FROM pa_pdfs")
-            if 'images' in real_tables:
-                pa_images = pa.Table.from_pylist(list_images)
-                if 'images' not in tables:
-                    try:
-                        con.sql("CREATE TABLE images AS SELECT * FROM pa_images")
-                    except: 
-                        pass
-                else:
-                    con.sql("DELETE FROM images where source = '%s'" % (fromfile))
-                    con.sql("INSERT INTO images SELECT * FROM pa_images")
+        
+        pa_files = pa.Table.from_pylist(list_files)
+        if 'files' not in glob_tables:
+            con.sql("CREATE TABLE files (filename VARCHAR PRIMARY KEY,filesize BIGINT, num_records INTEGER);")
+            con.sql("INSERT OR REPLACE INTO files SELECT * FROM pa_files")
+        else:
+            con.sql("INSERT OR REPLACE INTO files SELECT * FROM pa_files")        
+        pa_tables = pa.Table.from_pylist(list_tables)
+        if 'tables' not in glob_tables:
+            con.sql("CREATE TABLE tables (warcfile VARCHAR, path VARCHAR PRIMARY KEY, type VARCHAR, num_items INTEGER);")
+            con.sql("INSERT OR REPLACE INTO tables SELECT * FROM pa_tables")
+        else:
+            con.sql("INSERT OR REPLACE INTO tables SELECT * FROM pa_tables")        
 
+       
+    def index_by_table_type(self, fromfiles:list=None, tofile:str='warcindex.db', table_type:str='links', silent:bool=True):
+        """Generates parquet file with content type"""
+        con = duckdb.connect(tofile)
+
+        list_tables = []
+
+        if fromfiles  is None:
+            files = [item['filename'] for item in con.sql('select filename from files;').df().to_dict('records')]
+        else:
+            files = fromfiles
+
+        content_group = 'html' if table_type == 'links' else table_type
+        mimetypes = MIMES_EXT_TYPE_BY_GROUP[content_group]['mimes']
+        filetypes = MIMES_EXT_TYPE_BY_GROUP[content_group]['exts']
+
+        for filename in files:
+            rectables = con.sql(f"select * from tables where type = 'records' and warcfile = \'{filename}\';").df().to_dict('records')
+            if len(rectables) == 0:
+                if not silent:
+                    print(f'Records table for {filename} not found. Please reindex')
+                continue
+            else:
+                recfilepath = rectables[0]['path']
+            file_basename = os.path.basename(filename).lower()
+            if file_basename[-5:] == '.warc': 
+                file_basename - file_basename[0:-5]
+            elif file_basename[-8:] == '.warc.gz': 
+                file_basename = file_basename[0:-8]
+            
+            list_items = []
+
+
+            warcf = open(filename, "rb")  
+            content_types = ','.join(["'" + sub + "'" for sub in mimetypes])
+            query = f"select url, c_type, ext, \"offset\", warc_id from '{recfilepath}' where c_type IN ({content_types})"
+
+            records = con.sql(query).df().to_dict('records')
+            it = records if silent else tqdm.tqdm(records, desc=f'Processing {table_type} records from {filename}', total=len(records))
+            for item in it:
+                warcf.seek(int(item['offset']))
+                ait = iter(ArchiveIterator(warcf))
+                dbrec = next(ait)
+                if table_type == 'links':
+                    out_raw = BytesIO()
+                    buf = dbrec.content_stream().read(READ_SIZE)
+                    while buf:
+                        out_raw.write(buf)
+                        buf = dbrec.content_stream().read(READ_SIZE)
+                    try:
+                        root = BeautifulSoup(out_raw.getvalue(), features='lxml')
+                        if root is not None:
+                            links = root.find_all('a')
+                            if links is not None:
+                                for l in links:
+                                    lrec = {'warc_id' : item['warc_id'], 'source' : filename, 'url' : item['url'], '_text' : l.text}
+                                    for att in DEFAULT_LINK_ATTRS:
+                                        if att in l.attrs.keys(): 
+                                            lrec[att] = l.attrs[att]
+                                        else:
+                                            lrec[att] = None
+                                    list_items.append(lrec)
+                    except KeyboardInterrupt:
+                        pass
+                    except ValueError:
+                        logging.info('Error parsing links from %s' % (item['url']))                    
+                        pass                    
+                else:                    
+                    list_items.append(processWarcRecord(dbrec, item['url'], filename, mime=item['c_type'], source=filename))
+
+            if len(list_items) > 0:
+                dump_table(filename='data/' + file_basename + f'_{table_type}.parquet', table=list_items, con=con)
+                list_tables.append({'warcfile' : filename, 'path' :'data/' + file_basename + f'_{table_type}.parquet', 'type' : table_type, 'num_items' : len(list_items)})
+                if not silent:
+                    print('- saved %s with %s' % ('data/' + file_basename + f'_{table_type}.parquet', table_type))
+
+        if not silent:
+            print('Writing final tables metadata to db file')
+        pa_tables = pa.Table.from_pylist(list_tables)
+        con.sql("INSERT OR REPLACE INTO tables SELECT * FROM pa_tables")      
+
+
+    def dump_metadata(self, fromfiles:list=None, tofile:str='warcindex.db', metadata_type:str='ooxmldocs', output:str=None, silent:bool=True):
+        """Dumps metadata"""
+        con = duckdb.connect(tofile)
+
+        list_tables = []
+
+        if fromfiles  is None:
+            files = [item['filename'] for item in con.sql('select filename from files;').df().to_dict('records')]
+        else:
+            files = fromfiles
+
+        for filename in files:
+            mtables = con.sql(f"select * from tables where type = '{metadata_type}' and warcfile = \'{filename}\';").df().to_dict('records')
+            if len(mtables) == 0:
+                if not silent:
+                    print(f'Metadata table for {filename} with metadata {metadata_type} not found. Please reindex WARC file')
+                continue
+            else:
+                mfilepath = mtables[0]['path']
+
+            print(output)
+            if output is None:
+                query = f"select * from '{mfilepath}'"
+                records = con.sql(query).df().to_dict('records')
+                for row in records:
+                    print(json.dumps(row))
+            else:
+                f = open(output, 'a', encoding='utf8')
+                query = f"select * from '{mfilepath}'"
+                records = con.sql(query).df().to_dict('records')
+                for row in records:
+                    f.write(json.dumps(row) + '\n')
+                f.close()
+                if not silent: 
+                    print(f'Writing final {metadata_type} for file {filename} metadata to {output}')
 
     def calc_stats(self, dbfile='warcindex.db', mode='mime'):
         from rich.table import Table
@@ -249,13 +311,16 @@ class Indexer:
         con = duckdb.connect(dbfile)  
        
         if mode == 'mimes':
-             results = con.sql("select c_type, SUM(content_length), COUNT(warc_Id) from records group by c_type ")
+             results = con.sql("select c_type, SUM(content_length), COUNT(warc_Id) from 'data/*_records.parquet' group by c_type ")
              title = 'Group by mime type'
              headers = ('mime', 'size', 'size share', 'count')
         elif mode == 'exts':
-             results = con.sql("select ext, SUM(content_length), COUNT(warc_Id) from records group by ext ")
+             results = con.sql("select ext, SUM(content_length), COUNT(warc_Id) from 'data/*_records.parquet' group by ext ")
              title = 'Group by file extension'
              headers = ('extension', 'size', 'size share', 'count')
+        else:
+            print('Plese select mode: mimes or exts')
+            return 
   
         reptable = Table(title=title)
         reptable.add_column(headers[0], justify="left", style="magenta")
@@ -272,5 +337,5 @@ class Indexer:
 
 if __name__ == "__main__":
     indexer = Indexer()
-    indexer.index_content(sys.argv[1], tables=['records', 'headers', 'links', 'ooxmldocs', 'oledocs', 'pdfs', 'images'])
+    indexer.index_records(sys.argv[1], tables=['records', 'headers', 'links', 'ooxmldocs', 'oledocs', 'pdfs', 'images'])
 

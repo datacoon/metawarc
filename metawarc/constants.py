@@ -54,6 +54,9 @@ MIME_EXT_MAP = {
 'application/xml' : 'xml',
 'application/zip' : 'zip',
 
+'application/xhtml+xml': 'xhtml',
+
+
 'audio/mp3' : 'mp3',
 'audio/mpeg' : 'mp3',
 'audio/ogg' : 'ogg',
@@ -109,6 +112,7 @@ MIME_SHORT_MAP = {
     "xlsx",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation":
     "pptx",
+    'text/html' : 'html',
     "application/pdf": "pdf",
     "application/x-pdf": "pdf",
     "image/png": "png",
@@ -132,6 +136,21 @@ ADOBE_FILES = [
     "pdf",
 ]
 
+HTML_FILES = ['htm', 'html', 'sgml', 'xhtml']
+
 SUPPORTED_FILE_TYPES = MS_OLE_FILES + MS_XML_FILES + IMAGE_FILES + ADOBE_FILES
+
+
+MIMES_EXT_TYPE_BY_GROUP = {
+    'images' : {'mimes' : ['image/jpeg', 'image/png'], 'exts' : ['jpg', 'png']},
+    'ooxmldocs' : {
+        'mimes' : ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'], 
+        'exts' : ['xlsx', 'docx', 'pptx']},
+    'pdfs' : {'mimes' : ['application/pdf', 'application/x-pdf'], 'exts' : ['pdf', ]},
+    'oledocs' : {
+        'mimes' : ['application/msword', 'application/vnd.ms-powerpoint', 'application/vnd.ms-excel'], 
+        'exts' : ['doc', 'xls', 'ppt']},
+    'html' : {'mimes' : ['text/html', 'text/xhtml', 'text/sgml'], 'exts' : ['html', 'htm']}
+}
 
 DEFAULT_OPTIONS = {"encoding": "utf8", "delimiter": ",", "limit": 1000}

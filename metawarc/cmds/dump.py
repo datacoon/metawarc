@@ -6,7 +6,6 @@ import json
 import io
 from warcio import ArchiveIterator
 from warcio.utils import BUFF_SIZE
-from ..base import models
 from ..constants import MIME_EXT_MAP
 
 READ_SIZE = BUFF_SIZE * 4
@@ -29,39 +28,61 @@ class Dumper:
     def __init__(self):
         pass
 
-    def listfiles(self, dbfile='warcindex.db', mimes=None, exts=None, query=None, output=None):
+    def listfiles(self, warcfiles:str=None, dbfile:str='warcindex.db', mimes:list=None, exts:list=None, query:str=None, start:int=0, limit:int=1000, output:str=None, silent:bool=False):
         """Lists files in WARC file"""
         from rich.table import Table
         from rich import print
+
+        con = duckdb.connect(dbfile)
+
         if not os.path.exists(dbfile):
             print('Plese generate %s database with "metawarc index <filename.warc> command"' % dbfile)
             return
 
+        if warcfiles  is None:
+            files = [item['filename'] for item in con.sql('select filename from files;').df().to_dict('records')]
+        else:
+            files = warcfiles            
+
         headers = ['offset', 'url', 'length', 'content_type', 'ext', 'warc_id']
         prep_headers = ','.join(['"' + sub + '"' for sub in headers]) 
-
-        con = duckdb.connect(dbfile)  
         results = None
-
-        if mimes is not None:
-            prep_mimes = ','.join(["'" + sub + "'" for sub in mimes.split(',')])
-            s = "select %s from records where c_type in (%s)" % (prep_headers, prep_mimes)
-            print('Query', s)
-            results = con.sql(s).fetchall()
-        elif exts is not None:
-            prep_exts = ','.join(["'" + sub + "'" for sub in exts.split(',')])
-            s = "select %s from records where ext in (%s)" % (prep_headers, prep_exts)
-            print('Query', s)
-            results = con.sql(s).fetchall()
-        elif query is not None:
-            s = "select %s from records where %s" % (prep_headers, query)
-            results = con.sql(s).fetchall()
-        if results is None:
-            print('At least one parameter: query, exts or mimes should be provided')
-            return 
         outdata = []
-        for record in results:
-            outdata.append(record)
+
+        for filename in files:
+            rectables = con.sql(f"select * from tables where type = 'records' and warcfile = \'{filename}\';").df().to_dict('records')
+            if len(rectables) == 0:
+                if not silent:
+                    print(f'Records table for {filename} not found. Please reindex')
+                continue
+            else:
+                recfilepath = rectables[0]['path']
+
+
+            if mimes is not None:
+                prep_mimes = ','.join(["'" + sub + "'" for sub in mimes.split(',')])
+                s = f"select {prep_headers} from '{recfilepath}' where c_type in ({prep_mimes})"
+    #            print('Query', s)
+                results = con.sql(s).fetchall()
+            elif exts is not None:
+                prep_exts = ','.join(["'" + sub + "'" for sub in exts.split(',')])
+                s = f"select {prep_headers} from '{recfilepath}' where ext in ({prep_exts})"
+                #print('Query', s)
+                results = con.sql(s).fetchall()
+            elif query is not None:
+                s = f"select {prep_headers} from '{recfilepath}' where {query}"            
+                results = con.sql(s).fetchall()
+            else:
+                s = f"select {prep_headers} from '{recfilepath}' offset {start} limit {limit}"            
+                results = con.sql(s).fetchall()
+            if results is None:
+                if not silent:
+                    print('At least one parameter: query, exts or mimes should be provided')
+                return 
+            else:
+                for record in results:
+                    outdata.append(record)
+        
         if output is None:
             title = 'URL/file list'
             reptable = Table(title=title)
@@ -77,7 +98,7 @@ class Dumper:
             writer.writerow(headers)
             writer.writerows(outdata)
 
-    def dump(self, dbfile='warcindex.db', mimes=None, exts=None, query=None, output=None):
+    def dump(self, warcfiles:str=None, dbfile='warcindex.db', mimes:str=None, exts:str=None, query:str=None, start:int=0, limit:int=1000, output:str=None, silent:bool=False):
         """Dump WARC file contents"""
         from rich.table import Table
         from rich import print
@@ -85,32 +106,60 @@ class Dumper:
             print('Plese generate %s database with "metawarc index <filename.warc> command"' % dbfile)
             return
 
+
+        con = duckdb.connect(dbfile)
+
+        if not os.path.exists(dbfile):
+            print('Plese generate %s database with "metawarc index <filename.warc> command"' % dbfile)
+            return
+
+        if warcfiles  is None:
+            files = [item['filename'] for item in con.sql('select filename from files;').df().to_dict('records')]
+        else:
+            files = warcfiles            
+
         headers = ['offset', 'filename', 'url', 'length', 'content_type', 'ext', 'status_code', 'warc_id', 'source']
-
         prep_headers = ','.join(['"' + sub + '"' for sub in headers]) 
-
-        con = duckdb.connect(dbfile)  
         results = None
-        if mimes is not None:
-            prep_mimes = ','.join(["'" + sub + "'" for sub in mimes.split(',')])
-            s = "select %s from records where c_type in (%s)" % (prep_headers, prep_mimes)
-            print('Query', s)
-            results = con.sql(s).fetchall()        
-        elif exts is not None:
-            prep_exts = ','.join(["'" + sub + "'" for sub in exts.split(',')])
-            s = "select %s from records where ext in (%s)" % (prep_headers, prep_exts)
-            print('Query', s)
-            results = con.sql(s).fetchall()        
-        elif query is not None:
-            s = "select %s from records where %s" % (prep_headers, query)
-            results = con.sql(s).fetchall()
-        if results is None:
-            print('At least one parameter: query, exts or mimes should be provided')
-            return 
         outdata = []
+
+        for filename in files:
+            rectables = con.sql(f"select * from tables where type = 'records' and warcfile = \'{filename}\';").df().to_dict('records')
+            if len(rectables) == 0:
+                if not silent:
+                    print(f'Records table for {filename} not found. Please reindex')
+                continue
+            else:
+                recfilepath = rectables[0]['path']
+
+
+            if mimes is not None:
+                prep_mimes = ','.join(["'" + sub + "'" for sub in mimes.split(',')])
+                s = f"select {prep_headers} from '{recfilepath}' where c_type in ({prep_mimes})"
+    #            print('Query', s)
+                results = con.sql(s).fetchall()
+            elif exts is not None:
+                prep_exts = ','.join(["'" + sub + "'" for sub in exts.split(',')])
+                s = f"select {prep_headers} from '{recfilepath}' where ext in ({prep_exts})"
+                #print('Query', s)
+                results = con.sql(s).fetchall()
+            elif query is not None:
+                s = f"select {prep_headers} from '{recfilepath}' where {query}"            
+                results = con.sql(s).fetchall()
+            else:
+                s = f"select {prep_headers} from '{recfilepath}' offset {start} limit {limit}"            
+                results = con.sql(s).fetchall()
+            if results is None:
+                if not silent:
+                    print('At least one parameter: query, exts or mimes should be provided')
+                return                 
+            else:
+                for record in results:
+                    outdata.append(record)
         os.makedirs(output, exist_ok=True)
         opened_files = {}
-        for record in results:            
+        final_data = []
+        for record in outdata:            
             if record[8] in opened_files.keys():
                 fileobj = opened_files[record[8]]
             else:
@@ -120,7 +169,7 @@ class Dumper:
             it = iter(ArchiveIterator(fileobj))
             warcrec = next(it)
             filename = record[7] + '.' + get_ext_from_content_type(record[4])
-            outdata.append(record)            
+            final_data.append(record)            
             out_raw = open(os.path.join(output, filename), 'wb')
             stream = warcrec.content_stream()
             buf = stream.read(READ_SIZE)
@@ -132,4 +181,4 @@ class Dumper:
         output_file = os.path.join(output, 'records.csv')
         writer = csv.writer(open(output_file, 'w', encoding='utf8'))
         writer.writerow(headers)
-        writer.writerows(outdata)
+        writer.writerows(final_data)

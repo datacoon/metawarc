@@ -12,6 +12,10 @@ from .cmds.exporter import Exporter
 from .cmds.indexer import Indexer
 from .cmds.dump import Dumper
 
+# Required to suppress Hachoir warnings
+from hachoir.core import config as HachoirConfig
+HachoirConfig.quiet = True
+
 # logging.getLogger().addHandler(logging.StreamHandler())
 #logging.basicConfig(
 #    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -25,91 +29,6 @@ def enableVerbose():
     )
 
 
-@click.group()
-def cli1():
-    pass
-
-
-@cli1.command()
-@click.argument("inputfile")
-@click.option("--verbose",
-              "-v",
-              count=False,
-              help="Verbose output. Print additional info")
-@click.option(
-    "--filetypes",
-    "-t",
-    default=None,
-    help="File types (default: doc,xls,ppt,docx,xlsx,pptx",
-)
-@click.option("--fields", "-f", default=None, help="Fieldnames to extract")
-@click.option("--output", "-o", default=None, help="Output file")
-def metadata(inputfile, verbose, filetypes, fields, output):
-    """Extracts metadata from files inside WARC file or another file container"""
-    if verbose:
-        enableVerbose()
-    acmd = Extractor()
-    acmd.metadata_by_ext(inputfile,
-                         filetypes.split(",") if filetypes else None,
-                         fields,
-                         output=output)
-    pass
-
-
-@click.group()
-def cli2():
-    pass
-
-
-@cli2.command()
-@click.argument("inputfile")
-@click.option("--mode",
-              "-m",
-              default="mimes",
-              help="Analysis mode: mimes, exts. Default: mimes")
-@click.option("--verbose",
-              "-v",
-              count=False,
-              help="Verbose output. Print additional info")
-def analyze(inputfile, mode, verbose):
-    """Analysis of the WARC (requires WARC index)"""
-    if verbose:
-        enableVerbose()
-    acmd = Analyzer()
-    acmd.analyze(inputfile, mode=mode)
-    pass
-
-@click.group()
-def cli3():
-    pass
-
-
-@cli3.command()
-@click.argument("inputfile")
-@click.option("--verbose",
-              "-v",
-              count=False,
-              help="Verbose output. Print additional info")
-@click.option("--type", "-t", "exporttype", default='headers', help="Type of export: headers, warcio, content")
-@click.option(
-    "--fields",
-    "-f",
-    default="offset,length,filename,http:status,http:content-type,warc-type,warc-target-uri",
-    help="WARCIO export related field names to extract",
-)
-@click.option("--output", "-o", default="export.jsonl", help="Output file")
-def export(inputfile, verbose, exporttype, fields, output):
-    """Exports WARC file headers or warcio index"""
-    if verbose:
-        enableVerbose()
-    acmd = Exporter()
-    if exporttype == 'headers':
-        acmd.headers_export(inputfile, output=output)
-    elif exporttype == 'warcio':
-        acmd.warcio_indexer_export(inputfile, fields.split(","), output=output)
-    if exporttype == 'content':
-        acmd.content_export(inputfile, output=output, content_types=['text/html'])
-    pass
 
 @click.group()
 def cli4():
@@ -123,22 +42,23 @@ def cli4():
               help="Name of the output db file. Default: warcindex.db")     
 @click.option("--tables",
               "-t",
-              default="links",
+              default="",
               help="Comma separated list of tables. Default: links. Possible values: links, pdfs, images, ooxmldocs, oledocs")                          
-@click.option("--verbose",
-              "-v",
-              count=False,
-              help="Verbose output. Print additional info")          
 @click.option("--update",
               "-u",
-              count=False,
+              is_flag=True,
+              default=True,
               help="Update database index if it exists")          
 @click.option("--silent",
               "-s",
-              count=False,
+              is_flag=True,
               help="Do everything silent")          
-def warcindex(inputfile, tofile, tables, update, silent,verbose):
-    """Builds WARC file index as DuckDB database file"""
+@click.option("--verbose",
+              "-v",
+              is_flag=True,
+              help="Verbose output. Print additional info")          
+def warcindex(inputfile:str, tofile:str, tables:str, update:bool=True, silent:bool=False, verbose:bool=True):
+    """Builds WARC file index as DuckDB database file and accompanied Parquet files"""
     if verbose:
         enableVerbose()
     if os.path.exists(tofile) and not update:
@@ -146,9 +66,51 @@ def warcindex(inputfile, tofile, tables, update, silent,verbose):
         return
     acmd = Indexer()
     all_tables = ['records', 'headers']
-    all_tables += tables.split(',')
-    files = glob.glob(inputfile)
-    acmd.index_content(files, tofile, all_tables, silent=silent)
+    files = glob.glob(inputfile.strip("'"))    
+    print(inputfile, files)
+    acmd.index_records(files, tofile, all_tables, silent=silent)
+    pass
+
+
+@click.group()
+def cli9():
+    pass
+
+@cli9.command(name="index-content")
+@click.option("--inputfiles",
+              "-i",
+              default=None,
+              help="List of input files (globbed)")     
+@click.option("--tofile",
+              "-o",
+              default="warcindex.db",
+              help="Name of the output db file. Default: warcindex.db")     
+@click.option("--tables",
+              "-t",
+              default="links",
+              help="Comma separated list of tables. Default: links. Possible values: links, pdfs, images, ooxmldocs, oledocs")                               
+@click.option("--silent",
+              "-s",
+              is_flag=True,
+              help="Do everything silent")          
+@click.option("--verbose",
+              "-v",
+              is_flag=True,
+              help="Verbose output. Print additional info")          
+def index_content(inputfiles:str, tofile:str, tables:str, update:bool=True, silent:bool=False, verbose:bool=True):
+    """Builds WARC file index as DuckDB database file"""
+    if verbose:
+        enableVerbose()
+    if os.path.exists(tofile) and not update:
+        print(f'Output database {tofile} already exists. Please choose another file name or use update option')
+        return
+    acmd = Indexer()
+    if inputfiles is not None and len(inputfiles) == 0:
+        files = glob.glob(inputfiles)
+    else:
+        files = None
+    for table in tables.split(','):
+        acmd.index_by_table_type(files, tofile, table_type=table, silent=silent)
     pass
 
 @click.group()
@@ -166,7 +128,7 @@ def cli5():
               help="Name of the db file. Default: warcindex.db")               
 @click.option("--verbose",
               "-v",
-              count=False,
+              is_flag=True,
               help="Verbose output. Print additional info")
 def stats(mode, dbfile, verbose):
     """Generates mime or exts statistics"""
@@ -181,7 +143,7 @@ def stats(mode, dbfile, verbose):
 def cli6():
     pass
 
-@cli6.command(name="list")
+@cli6.command(name="list-files")
 @click.option("--mimes",
               "-m",
               default=None,
@@ -196,18 +158,19 @@ def cli6():
               help="Custom SQL query to select records")
 @click.option("--verbose",
               "-v",
-              count=False,
+              is_flag=True,
+              default=False,
               help="Verbose output. Print additional info")
 @click.option("--output",
               "-o",
               default=None,
               help="Output file (CSV)")
-def listfiles(mimes, exts, query, verbose, output):
+def listfiles(warcfiles:str=None, mimes:str=None, exts:str=None, query:str=None, verbose:bool=False, output:str=None):
     """Lists urls inside WARC file"""
     if verbose:
         enableVerbose()
     acmd = Dumper()
-    acmd.listfiles(mimes=mimes, exts=exts, query=query, output=output)
+    acmd.listfiles(warcfiles=warcfiles, mimes=mimes, exts=exts, query=query, output=output)
     pass
 
 @click.group()
@@ -229,7 +192,7 @@ def cli7():
               help="Custom SQL query to select records")
 @click.option("--verbose",
               "-v",
-              count=False,
+              is_flag=True,
               help="Verbose output. Print additional info")
 @click.option("--output",
               "-o",
@@ -243,7 +206,53 @@ def dump(mimes, exts, query, verbose, output):
     acmd.dump(mimes=mimes, exts=exts, query=query, output=output)
     pass
 
-cli = click.CommandCollection(sources=[cli1, cli2, cli3, cli4, cli5, cli6, cli7])
+
+@click.group()
+def cli1():
+    pass
+
+@cli1.command(name="dump-metadata")
+@click.option("--inputfiles",
+              "-i",
+              default=None,
+              help="List of input files (globbed)")     
+@click.option("--dbfile",
+              "-d",
+              default="warcindex.db",
+              help="Name of the  db file.")     
+@click.option("--metadata-type",
+              "-t",
+              default="ooxmldocs",
+              help="Metadata type: pdfs, images, ooxmldocs, oledocs")                               
+@click.option("--output",
+              "-o",
+              default="None",
+              help="Name of the output  file. Default: std out")                   
+@click.option("--silent",
+              "-s",
+              is_flag=True,
+              help="Do everything silent")          
+@click.option("--verbose",
+              "-v",
+              is_flag=True,
+              help="Verbose output. Print additional info")          
+def dump_metadata(inputfiles:str, dbfile:str, metadata_type:str, output:str=None, silent:bool=False, verbose:bool=True):
+    """Dumps indexed metadata"""
+    if verbose:
+        enableVerbose()
+    if not os.path.exists(dbfile):
+        print(f'Database {db} not found. Please index WARC files before dumping')
+        return
+    acmd = Indexer()
+    if inputfiles is not None and len(inputfiles) == 0:
+        files = glob.glob(inputfiles)
+    else:
+        files = None
+    acmd.dump_metadata(files, dbfile, metadata_type=metadata_type, output=output, silent=silent)
+    pass
+
+
+cli = click.CommandCollection(sources=[cli1,  cli4, cli5, cli6, cli7, cli9])
 
 # if __name__ == '__main__':
 #    cli()
