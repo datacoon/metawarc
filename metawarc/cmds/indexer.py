@@ -292,7 +292,6 @@ class Indexer:
             else:
                 mfilepath = mtables[0]['path']
 
-            print(output)
             if output is None:
                 query = f"select * from '{mfilepath}'"
                 records = con.sql(query).df().to_dict('records')

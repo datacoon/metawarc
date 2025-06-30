@@ -109,10 +109,6 @@ class Dumper:
 
         con = duckdb.connect(dbfile)
 
-        if not os.path.exists(dbfile):
-            print('Plese generate %s database with "metawarc index <filename.warc> command"' % dbfile)
-            return
-
         if warcfiles  is None:
             files = [item['filename'] for item in con.sql('select filename from files;').df().to_dict('records')]
         else:
@@ -182,3 +178,59 @@ class Dumper:
         writer = csv.writer(open(output_file, 'w', encoding='utf8'))
         writer.writerow(headers)
         writer.writerows(final_data)
+
+
+    def get_file(self, fileid:str=None, dbfile='warcindex.db', output:str=None, silent:bool=False):
+        """Dump WARC file contents"""
+        from rich.table import Table
+        from rich import print
+        if not os.path.exists(dbfile):
+            print('Plese generate %s database with "metawarc index <filename.warc> command"' % dbfile)
+            return
+
+        con = duckdb.connect(dbfile)
+
+
+        files = [item['filename'] for item in con.sql('select filename from files;').df().to_dict('records')]
+
+        headers = ['offset', 'filename', 'url', 'length', 'content_type', 'ext', 'status_code', 'warc_id', 'source']
+        prep_headers = ','.join(['"' + sub + '"' for sub in headers]) 
+        results = None
+        outdata = []
+        found = False
+
+        for filename in files:
+            rectables = con.sql(f"select * from tables where type = 'records' and warcfile = \'{filename}\';").df().to_dict('records')
+            if len(rectables) == 0:
+                if not silent:
+                    print(f'Records table for {filename} not found. Please reindex')
+                continue
+            else:
+                recfilepath = rectables[0]['path']
+
+            s = f"select {prep_headers} from '{recfilepath}' where warc_id = \'{fileid}\' or url = \'{fileid}\'"
+            results = con.sql(s).fetchall()
+                
+            if results is None or len(results) == 0:                
+                continue
+            else:
+                found = True
+                record = results[0]
+                fileobj = open(record[8], "rb")
+                fileobj.seek(record[0])
+                it = iter(ArchiveIterator(fileobj))
+                warcrec = next(it)
+                filename = record[7] + '.' + get_ext_from_content_type(record[4])
+                if output is None: output = filename
+                out_raw = open(output, 'wb')
+                stream = warcrec.content_stream()
+                buf = stream.read(READ_SIZE)
+                while buf:
+                    out_raw.write(buf)
+                    buf = stream.read(READ_SIZE)
+                out_raw.close()
+            if not silent:
+                print('Wrote %s, url %s' % (filename, record[2]))
+        if not found:
+            if not silent:
+                print('File not found')

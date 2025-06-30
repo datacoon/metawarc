@@ -74,70 +74,64 @@ Synopsis:
 See also ``metawarc --help`` and ``metawarc [command] --help`` for help for each command.
 
 
-Examples
---------
+Quickstart
+==========
 
-Extract metadata of all supported file types from 'digital.gov.ru.warc.gz' and output results to default filename 'metadata.jsonl':
-
-.. code-block:: bash
-
-    $ metawarc metadata digital.gov.ru.warc.gz
-
-
-Extract metadata for .doc and .docx file types from 'digital.gov.ru.warc.gz' and output results to default filename 'metadata.jsonl':
+Index all WARC files in all subfolders
 
 .. code-block:: bash
 
-    $ metawarc metadata --filetypes doc,docx digital.gov.ru.warc.gz
+    $ metawarc index '*/*.warc.gz'
 
-Extract metadata for .doc and .docx file types from 'digital.gov.ru.warc.gz' and output results to filename 'digital_meta.jsonl':
+View file extensions statistics
 
 .. code-block:: bash
 
-    $ metawarc metadata --filetypes doc,docx --output digital_meta.jsonl digital.gov.ru.warc.gz
+    $ metawarc stats -m exts
+
+
+List all PDF files
+
+.. code-block:: bash
+
+    $ metawarc list-files -e pdf
+
+
+Dumps all records with size greater than 10M and file extension 'pdf' to 'bigpdf' directory
+
+.. code-block:: bash
+
+    $ metawarc dump -q "content_length > 10000000 and ext = 'pdf'" -o bigpdf
+
+
 
 
 Commands
 ========
 
-Metadata command
-----------------
-Extracts metadata from files inside .warc files. Returns JSON lines output for each file found.
-
-Extract metadata for .doc and .docx file types from 'digital.gov.ru.warc.gz' and output results to filename 'digital_meta.jsonl':
-
-.. code-block:: bash
-
-    $ metawarc metadata --filetypes doc,docx --output digital_meta.jsonl digital.gov.ru.warc.gz
-
-
-
-Analyze command
-----------------
-Returns list of mime mimetypes with stats as number of files and total files size for each mime type.
-Will be merged or replaced by 'stats' command that uses sqlite db to speed up data processing
-
-Analyzes 'digital.gov.ru.warc.gz' and output results of list of mime types as table to console
-
-.. code-block:: bash
-
-    $ metawarc analyze digital.gov.ru.warc.gz
-
-
-
 Index command
 -------------
-Generates 'metawarc.db' SQLite database with records HTTP metadata. Requred for 'stats' command to calculate stats quickly
+Generates 'warcindex.db' DuckDB database with records and headers metadata. 
+For each WARC file generated two Parquet files in 'data' directory, they inherit WARC file name and have suffix '_records' and "_headers".
+All of them registered in 'warcindex.db' with tables as "files" and "tables". 
 
-Analyzes 'digital.gov.ru.warc.gz' and writes 'metawarc.db' with HTTP metadata.
+Analyzes 'armstat.am.warc.gz' and writes 'warcindex.db' with records and headers metadata.
 
 .. code-block:: bash
 
-    $ metawarc index digital.gov.ru.warc.gz
+    $ metawarc index armstat.am.warc.gz
+
+Analyzes all WARC files in all subfolders and writes 'warcindex.db' with records and headers metadata.
+
+.. code-block:: bash
+
+    $ metawarc index '*/*.warc.gz'
+
+
 
 Stats command
 -------------
-Same as 'analyze' command but uses 'metawarc.db' to speed up data processing. Returns total length and count of records by each mime or file extension.
+Returns total length and count of records by each mime or file extension.
 
 Processes data in 'metawarc.db' and prints total length and count for each mime
 
@@ -152,49 +146,38 @@ Processes data in 'metawarc.db' and prints total length and count for each file 
     $ metawarc stats -m exts
 
 
-Export command
---------------
-Extracts HTTP headers, WARC headers or text content from WARC file and saves as NDJSON (JSON lines) data file.
+Dump metadata command
+---------------------
+Dumps metadata from tables. Supported metadata types: pdfs, ooxmldocs, oledocs, images, links
 
-Exports http headers from 'digital.gov.ru.warc.gz' and writes as 'headers.jsonl'
-
-.. code-block:: bash
-
-    $ metawarc export -t headers -o headers.jsonl digital.gov.ru.warc.gz
-
-Exports WarcIO index from 'digital.gov.ru.warc.gz' and writes as 'data.jsonl' with fields listed in '-f' option. 
+Exports PDF files metadata and writes as 'pdfs_metadata.jsonl'
 
 .. code-block:: bash
 
-    $ metawarc export -t warcio -f offset,length,filename,http:status,http:content-type,warc-type,warc-target-uri -o data.jsonl digital.gov.ru.warc.gz
+    $ metawarc dump-metadata -t pdfs -o pdfs_metadata.jsonl
 
-Exports text (HTML) content from 'digital.gov.ru.warc.gz' and writes as 'content.jsonl'
 
-.. code-block:: bash
-
-    $ metawarc export -t content -o content.jsonl digital.gov.ru.warc.gz
-
-List command
-------------
+List files command
+------------------
 Prints list of records with id, offset, length and url using 'metawarc.db'. Accepts list of mime types or list of file extensions or query as WHERE clause
 
 Prints all records with mime type (content type) 'application/zip'
 
 .. code-block:: bash
 
-    $ metawarc list -m 'application/zip'
+    $ metawarc list-files -m 'application/zip'
 
 Prints all records with file extensions 'xls' and 'xlsx'
 
 .. code-block:: bash
 
-    $ metawarc list -e xls,xlsx
+    $ metawarc list-files -e xls,xlsx
 
 Prints all records with size greater than 10M and file extension 'pdf'
 
 .. code-block:: bash
 
-    $ metawarc list -q 'content_length > 10000000 and ext = "pdf"'
+    $ metawarc list-files -q "content_length > 10000000 and ext = 'pdf'"
 
 
 Dump command
@@ -218,5 +201,5 @@ Dumps all records with size greater than 10M and file extension 'pdf' to 'bigpdf
 
 .. code-block:: bash
 
-    $ metawarc dump -q 'content_length > 10000000 and ext = "pdf"' -o 'bigpdf'
+    $ metawarc dump -q "content_length > 10000000 and ext = 'pdf'" -o bigpdf
 

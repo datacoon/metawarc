@@ -223,7 +223,7 @@ def cli1():
               help="Metadata type: pdfs, images, ooxmldocs, oledocs")                               
 @click.option("--output",
               "-o",
-              default="None",
+              default=None,
               help="Name of the output  file. Default: std out")                   
 @click.option("--silent",
               "-s",
@@ -248,8 +248,41 @@ def dump_metadata(inputfiles:str, dbfile:str, metadata_type:str, output:str=None
     acmd.dump_metadata(files, dbfile, metadata_type=metadata_type, output=output, silent=silent)
     pass
 
+@click.group()
+def cli2():
+    pass
 
-cli = click.CommandCollection(sources=[cli1,  cli4, cli5, cli6, cli7, cli9])
+@cli2.command(name="get")
+@click.argument("fileid")
+@click.option("--dbfile",
+              "-d",
+              default="warcindex.db",
+              help="Name of the  db file.")     
+@click.option("--output",
+              "-o",
+              default="None",
+              help="Name of the output  file. Default: std out")                   
+@click.option("--silent",
+              "-s",
+              is_flag=True,
+              help="Do everything silent")          
+@click.option("--verbose",
+              "-v",
+              is_flag=True,
+              help="Verbose output. Print additional info")          
+def get(fileid:str, dbfile:str, output:str=None, silent:bool=False, verbose:bool=True):
+    """Extract selected file/url by warc_id or url"""
+    if verbose:
+        enableVerbose()
+    if not os.path.exists(dbfile):
+        print(f'Database {db} not found. Please index WARC files before dumping')
+        return
+    acmd = Dumper()
+    acmd.get_file(fileid, dbfile, output=output, silent=silent)
+    pass
+
+
+cli = click.CommandCollection(sources=[cli1, cli2, cli4, cli5, cli6, cli7, cli9])
 
 # if __name__ == '__main__':
 #    cli()
