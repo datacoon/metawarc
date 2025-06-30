@@ -6,9 +6,6 @@ import click
 import os
 import glob
 
-from .cmds.analyzer import Analyzer
-from .cmds.extractor import Extractor
-from .cmds.exporter import Exporter
 from .cmds.indexer import Indexer
 from .cmds.dump import Dumper
 
