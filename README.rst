@@ -111,8 +111,7 @@ Commands
 
 Index command
 -------------
-Generates 'warcindex.db' DuckDB database with records and headers metadata. 
-For each WARC file generated two Parquet files in 'data' directory, they inherit WARC file name and have suffix '_records' and "_headers".
+Generates 'warcindex.db' DuckDB database with WARC files meta and for each WARC file generated two Parquet files in 'data' directory, they inherit WARC file name and have suffix '_records' and "_headers".
 All of them registered in 'warcindex.db' with tables as "files" and "tables". 
 
 Analyzes 'armstat.am.warc.gz' and writes 'warcindex.db' with records and headers metadata.
@@ -126,6 +125,24 @@ Analyzes all WARC files in all subfolders and writes 'warcindex.db' with records
 .. code-block:: bash
 
     $ metawarc index '*/*.warc.gz'
+
+
+Index content command
+---------------------
+Analyzes WARC files records and extracts relevant metadata / content for future reuse. Supported metadata types: ooxmldocs, oledocs, pdfs, images, links
+Results saved to Parquet file in 'data' directory with suffix of the related metdata. For example '_images' for images.
+
+Collects PDF files metadata from all WARC files
+
+.. code-block:: bash
+
+    $ metawarc index-content -t pdfs
+
+Collects all links for selected WARC file (should be listed in 'warcindex.db' after index command run)
+
+.. code-block:: bash
+
+    $ metawarc index-content -i armstat.am.warc.gz -t links
 
 
 
