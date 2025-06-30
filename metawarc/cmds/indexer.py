@@ -157,16 +157,18 @@ class Indexer:
             resp.close()
 
             os.makedirs('data', exist_ok=True)
-            if 'records' in real_tables:                
-                dump_table(filename='data/' + file_basename + '_records.parquet', table=list_records, con=con)
-                list_tables.append({'warcfile' : fromfile, 'path' :'data/' + file_basename + '_records.parquet', 'type' : 'records', 'num_items' : len(list_records)})
-                if not silent:
-                    print('- saved %s with %s' % ('data/' + file_basename + '_records.parquet', 'records'))
+            if 'records' in real_tables:               
+                if len(list_records) > 0: 
+                    dump_table(filename='data/' + file_basename + '_records.parquet', table=list_records, con=con)
+                    list_tables.append({'warcfile' : fromfile, 'path' :'data/' + file_basename + '_records.parquet', 'type' : 'records', 'num_items' : len(list_records)})
+                    if not silent:
+                        print('- saved %s with %s' % ('data/' + file_basename + '_records.parquet', 'records'))
             if 'headers' in real_tables:
-                dump_table(filename='data/' +file_basename + '_headers.parquet', table=list_headers, con=con)
-                list_tables.append({'warcfile' : fromfile, 'path' :'data/' + file_basename + '_headers.parquet', 'type' : 'headers', 'num_items' : len(list_headers)})
-                if not silent:
-                    print('- saved %s with %s' % ('data/' + file_basename + '_headers.parquet', 'headers'))
+                if len(list_headers) > 0:
+                    dump_table(filename='data/' +file_basename + '_headers.parquet', table=list_headers, con=con)
+                    list_tables.append({'warcfile' : fromfile, 'path' :'data/' + file_basename + '_headers.parquet', 'type' : 'headers', 'num_items' : len(list_headers)})
+                    if not silent:
+                        print('- saved %s with %s' % ('data/' + file_basename + '_headers.parquet', 'headers'))
             file_record['num_records'] = len(list_records)
             list_files.append(file_record)
 
@@ -208,6 +210,10 @@ class Indexer:
                 continue
             else:
                 recfilepath = rectables[0]['path']
+                if not os.path.exists(recfilepath):
+                    if not silent:
+                        print(f'Records file for {filename} not found')
+                    continue
             file_basename = os.path.basename(filename).lower()
             if file_basename[-5:] == '.warc': 
                 file_basename - file_basename[0:-5]
