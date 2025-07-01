@@ -58,6 +58,11 @@ class Dumper:
             else:
                 recfilepath = rectables[0]['path']
 
+            if not os.path.exists(recfilepath):
+                if not silent:
+                    print(f'Records table file {recfilepath} for {filename} not found. Please reindex or ignore')
+                continue
+
 
             if mimes is not None:
                 prep_mimes = ','.join(["'" + sub + "'" for sub in mimes.split(',')])
@@ -128,6 +133,10 @@ class Dumper:
             else:
                 recfilepath = rectables[0]['path']
 
+            if not os.path.exists(recfilepath):
+                if not silent:
+                    print(f'Records table file {recfilepath} for {filename} not found. Please reindex or ignore')
+                continue
 
             if mimes is not None:
                 prep_mimes = ','.join(["'" + sub + "'" for sub in mimes.split(',')])
@@ -207,7 +216,10 @@ class Dumper:
                 continue
             else:
                 recfilepath = rectables[0]['path']
-
+            if not os.path.exists(recfilepath):
+                if not silent:
+                    print(f'Records table file {recfilepath} for {filename} not found. Please reindex or ignore')
+                continue
             s = f"select {prep_headers} from '{recfilepath}' where warc_id = \'{fileid}\' or url = \'{fileid}\'"
             results = con.sql(s).fetchall()
                 
