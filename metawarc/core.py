@@ -46,6 +46,10 @@ def cli4():
               is_flag=True,
               default=True,
               help="Update database index if it exists")          
+@click.option("--rescan",
+              "-r",
+              is_flag=True,
+              help="Rebuild/rescan metadata")          
 @click.option("--silent",
               "-s",
               is_flag=True,
@@ -54,7 +58,7 @@ def cli4():
               "-v",
               is_flag=True,
               help="Verbose output. Print additional info")          
-def warcindex(inputfile:str, tofile:str, tables:str, update:bool=True, silent:bool=False, verbose:bool=True):
+def warcindex(inputfile:str, tofile:str, tables:str, update:bool=True, rescan:bool=False, silent:bool=False, verbose:bool=True):
     """Builds WARC file index as DuckDB database file and accompanied Parquet files"""
     if verbose:
         enableVerbose()
@@ -64,8 +68,7 @@ def warcindex(inputfile:str, tofile:str, tables:str, update:bool=True, silent:bo
     acmd = Indexer()
     all_tables = ['records', 'headers']
     files = glob.glob(inputfile.strip("'"))    
-    print(inputfile, files)
-    acmd.index_records(files, tofile, all_tables, silent=silent)
+    acmd.index_records(files, tofile, all_tables, rescan=rescan, silent=silent)
     pass
 
 
@@ -85,7 +88,11 @@ def cli9():
 @click.option("--tables",
               "-t",
               default="links",
-              help="Comma separated list of tables. Default: links. Possible values: links, pdfs, images, ooxmldocs, oledocs")                               
+              help="Comma separated list of tables. Default: links. Possible values: links, pdfs, images, ooxmldocs, oledocs")            
+@click.option("--rescan",
+              "-r",
+              is_flag=True,
+              help="Rebuild/rescan metadata")                                           
 @click.option("--silent",
               "-s",
               is_flag=True,
@@ -94,7 +101,7 @@ def cli9():
               "-v",
               is_flag=True,
               help="Verbose output. Print additional info")          
-def index_content(inputfiles:str, tofile:str, tables:str, update:bool=True, silent:bool=False, verbose:bool=True):
+def index_content(inputfiles:str, tofile:str, tables:str, update:bool=True, rescan:bool=True, silent:bool=False, verbose:bool=True):
     """Builds WARC file index as DuckDB database file"""
     if verbose:
         enableVerbose()
@@ -107,7 +114,7 @@ def index_content(inputfiles:str, tofile:str, tables:str, update:bool=True, sile
     else:
         files = None
     for table in tables.split(','):
-        acmd.index_by_table_type(files, tofile, table_type=table, silent=silent)
+        acmd.index_by_table_type(files, tofile, table_type=table, rescan=rescan, silent=silent)
     pass
 
 @click.group()

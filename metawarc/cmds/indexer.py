@@ -13,7 +13,7 @@ import glob
 import tqdm
 
 #from lxml import etree, html
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup,SoupStrainer
 
 from ..constants import SUPPORTED_FILE_TYPES, IMAGE_FILES, MS_XML_FILES, MIME_SHORT_MAP, ADOBE_FILES, MS_OLE_FILES, HTML_FILES, MIMES_EXT_TYPE_BY_GROUP
 
@@ -25,6 +25,7 @@ from pdfminer.pdfdocument import PDFDocument
 from pdfminer.pdfparser import PDFParser
 
 from .extractor import processWarcRecord
+
 
 BUFF_SIZE = 16384
 READ_SIZE = BUFF_SIZE * 4
@@ -70,7 +71,7 @@ class Indexer:
     def __init__(self):
         pass
 
-    def index_records(self, fromfiles:list, tofile:str='warcindex.db', tables:list=['records', 'headers'], silent:bool=False):
+    def index_records(self, fromfiles:list, tofile:str='warcindex.db', tables:list=['records', 'headers'], rescan:bool=False, silent:bool=False):
         """Generates DuckDB database and parquet files as WARC index"""
         from rich.progress import track
         from rich import print
@@ -91,6 +92,16 @@ class Indexer:
                 file_basename - file_basename[0:-5]
             elif file_basename[-8:] == '.warc.gz': 
                 file_basename = file_basename[0:-8]
+
+            table_filename = 'data/' + file_basename + f'_records.parquet'
+            if os.path.exists(table_filename):
+                if not rescan:
+                    if not silent:
+                        print('Fole {table_filename} already exists and rescan option not set. Skipping')
+                        continue
+                else:
+                    if not silent:
+                        print('Fole {table_filename} already exists but rescan option set. Processing')                
 
             iterator = ArchiveIterator(resp)
                             
@@ -159,10 +170,10 @@ class Indexer:
             os.makedirs('data', exist_ok=True)
             if 'records' in real_tables:               
                 if len(list_records) > 0: 
-                    dump_table(filename='data/' + file_basename + '_records.parquet', table=list_records, con=con)
-                    list_tables.append({'warcfile' : fromfile, 'path' :'data/' + file_basename + '_records.parquet', 'type' : 'records', 'num_items' : len(list_records)})
+                    dump_table(filename=table_filename, table=list_records, con=con)
+                    list_tables.append({'warcfile' : fromfile, 'path' :table_filename, 'type' : 'records', 'num_items' : len(list_records)})
                     if not silent:
-                        print('- saved %s with %s' % ('data/' + file_basename + '_records.parquet', 'records'))
+                        print('- saved %s with %s' % (table_filename, 'records'))
             if 'headers' in real_tables:
                 if len(list_headers) > 0:
                     dump_table(filename='data/' +file_basename + '_headers.parquet', table=list_headers, con=con)
@@ -172,6 +183,8 @@ class Indexer:
             file_record['num_records'] = len(list_records)
             list_files.append(file_record)
 
+        if len(list_files) == 0:
+            return
         
         pa_files = pa.Table.from_pylist(list_files)
         if 'files' not in glob_tables:
@@ -187,7 +200,7 @@ class Indexer:
             con.sql("INSERT OR REPLACE INTO tables SELECT * FROM pa_tables")        
 
        
-    def index_by_table_type(self, fromfiles:list=None, tofile:str='warcindex.db', table_type:str='links', silent:bool=True):
+    def index_by_table_type(self, fromfiles:list=None, tofile:str='warcindex.db', table_type:str='links', rescan:bool=False, silent:bool=True):
         """Generates parquet file with content type"""
         con = duckdb.connect(tofile)
 
@@ -222,6 +235,15 @@ class Indexer:
             
             list_items = []
 
+            table_filename = 'data/' + file_basename + f'_{table_type}.parquet'
+            if os.path.exists(table_filename):
+                if not rescan:
+                    if not silent:
+                        print('Fole {table_filename} already exists and rescan option not set. Skipping')
+                        continue
+                else:
+                    if not silent:
+                        print('Fole {table_filename} already exists but rescan option set. Processing')
 
             warcf = open(filename, "rb")  
             content_types = ','.join(["'" + sub + "'" for sub in mimetypes])
@@ -240,18 +262,17 @@ class Indexer:
                         out_raw.write(buf)
                         buf = dbrec.content_stream().read(READ_SIZE)
                     try:
-                        root = BeautifulSoup(out_raw.getvalue(), features='lxml')
+                        only_a_tags = SoupStrainer("a")
+                        root = BeautifulSoup(out_raw.getvalue(), "lxml", parse_only=only_a_tags)
                         if root is not None:
-                            links = root.find_all('a')
-                            if links is not None:
-                                for l in links:
-                                    lrec = {'warc_id' : item['warc_id'], 'source' : filename, 'url' : item['url'], '_text' : l.text}
-                                    for att in DEFAULT_LINK_ATTRS:
-                                        if att in l.attrs.keys(): 
-                                            lrec[att] = l.attrs[att]
-                                        else:
-                                            lrec[att] = None
-                                    list_items.append(lrec)
+                            for l in root:
+                                lrec = {'warc_id' : item['warc_id'], 'source' : filename, 'url' : item['url'], '_text' : l.text}
+                                for att in DEFAULT_LINK_ATTRS:
+                                    if att in l.attrs.keys(): 
+                                        lrec[att] = l.attrs[att]
+                                    else:
+                                        lrec[att] = None
+                                list_items.append(lrec)
                     except KeyboardInterrupt:
                         pass
                     except ValueError:
@@ -261,10 +282,13 @@ class Indexer:
                     list_items.append(processWarcRecord(dbrec, item['url'], filename, mime=item['c_type'], source=filename))
 
             if len(list_items) > 0:
-                dump_table(filename='data/' + file_basename + f'_{table_type}.parquet', table=list_items, con=con)
-                list_tables.append({'warcfile' : filename, 'path' :'data/' + file_basename + f'_{table_type}.parquet', 'type' : table_type, 'num_items' : len(list_items)})
+                dump_table(filename=table_filename, table=list_items, con=con)
+                list_tables.append({'warcfile' : filename, 'path' :table_filename, 'type' : table_type, 'num_items' : len(list_items)})
                 if not silent:
-                    print('- saved %s with %s' % ('data/' + file_basename + f'_{table_type}.parquet', table_type))
+                    print(f'- saved {table_filename} with {table_type}')
+
+        if len(list_tables) == 0:
+            return
 
         if not silent:
             print('Writing final tables metadata to db file')
